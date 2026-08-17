@@ -14,6 +14,7 @@ describe('Usage Tracking, Metrics & Quota Limits (/v1/usage)', { concurrency: 1 
   const { apiKey, secretHash } = generateApiKey('live');
 
   const mockUser = {
+    resumeId: 'USER#usr_usage_user_1',
     userId: 'usr_usage_user_1',
     email: 'usage@example.com',
     status: 'active',
@@ -22,13 +23,10 @@ describe('Usage Tracking, Metrics & Quota Limits (/v1/usage)', { concurrency: 1 
 
   const setupAuthMocks = () => {
     return (command: any) => {
-      if (command.input?.Key?.PK === `APIKEY_HASH#${secretHash}`) {
+      if (command.input?.Key?.resumeId === `APIKEY_HASH#${secretHash}`) {
         return { Item: { userId: 'usr_usage_user_1', keyId: 'key_usage_1' } };
       }
-      if (
-        command.input?.Key?.PK === 'USER#usr_usage_user_1' &&
-        command.input?.Key?.SK === 'APIKEY#key_usage_1'
-      ) {
+      if (command.input?.Key?.resumeId === 'APIKEY#key_usage_1') {
         return {
           Item: {
             keyId: 'key_usage_1',
@@ -38,10 +36,7 @@ describe('Usage Tracking, Metrics & Quota Limits (/v1/usage)', { concurrency: 1 
           },
         };
       }
-      if (
-        command.input?.Key?.PK === 'USER#usr_usage_user_1' &&
-        command.input?.Key?.SK === 'PROFILE'
-      ) {
+      if (command.input?.Key?.resumeId === 'USER#usr_usage_user_1') {
         return { Item: mockUser };
       }
       return null;
@@ -78,7 +73,7 @@ describe('Usage Tracking, Metrics & Quota Limits (/v1/usage)', { concurrency: 1 
       );
       assert.ok(putCommand);
       assert.strictEqual(putCommand.input.Item.event, 'uploaded');
-      assert.strictEqual(putCommand.input.Item.resumeId, 'res_123');
+      assert.strictEqual(putCommand.input.Item.associatedResumeId, 'res_123');
     });
 
     it('trackParseSuccess increments daily resumesParsed, tokens, and records audit event', async () => {
@@ -152,8 +147,8 @@ describe('Usage Tracking, Metrics & Quota Limits (/v1/usage)', { concurrency: 1 
   describe('GET /v1/usage (Aggregated Summary)', () => {
     it('aggregates daily metrics over requested period correctly', async () => {
       const authHandler = setupAuthMocks();
-      const mockDailyRecords = [
-        {
+      const mockDailyMap: Record<string, any> = {
+        '2026-08-15': {
           date: '2026-08-15',
           requests: 50,
           resumesUploaded: 20,
@@ -163,7 +158,7 @@ describe('Usage Tracking, Metrics & Quota Limits (/v1/usage)', { concurrency: 1 
           outputTokens: 5000,
           totalTokens: 25000,
         },
-        {
+        '2026-08-16': {
           date: '2026-08-16',
           requests: 70,
           resumesUploaded: 25,
@@ -173,14 +168,18 @@ describe('Usage Tracking, Metrics & Quota Limits (/v1/usage)', { concurrency: 1 
           outputTokens: 7000,
           totalTokens: 37000,
         },
-      ];
+      };
 
       mock.method(dynamo, 'send', async (command: any) => {
         const authRes = authHandler(command);
         if (authRes) return authRes;
 
-        if (command.input?.KeyConditionExpression) {
-          return { Items: mockDailyRecords };
+        const key = command.input?.Key?.resumeId;
+        if (key && key.startsWith('USAGE#usr_usage_user_1#')) {
+          const date = key.split('#')[2];
+          if (mockDailyMap[date]) {
+            return { Item: mockDailyMap[date] };
+          }
         }
         return {};
       });
@@ -213,16 +212,15 @@ describe('Usage Tracking, Metrics & Quota Limits (/v1/usage)', { concurrency: 1 
         const authRes = authHandler(command);
         if (authRes) return authRes;
 
-        if (command.input?.KeyConditionExpression) {
+        const key = command.input?.Key?.resumeId;
+        if (key && key.startsWith('USAGE#usr_usage_user_1#')) {
           return {
-            Items: [
-              {
-                date: '2026-08-17',
-                requests: 10,
-                resumesParsed: 5,
-                totalTokens: 8000,
-              },
-            ],
+            Item: {
+              date: key.split('#')[2],
+              requests: 10,
+              resumesParsed: 5,
+              totalTokens: 8000,
+            },
           };
         }
         return {};
@@ -251,14 +249,13 @@ describe('Usage Tracking, Metrics & Quota Limits (/v1/usage)', { concurrency: 1 
         const authRes = authHandler(command);
         if (authRes) return authRes;
 
-        if (command.input?.KeyConditionExpression) {
+        const key = command.input?.Key?.resumeId;
+        if (key && key.startsWith('USAGE#usr_usage_user_1#')) {
           return {
-            Items: [
-              {
-                date: '2026-08-01',
-                resumesUploaded: 50,
-              },
-            ],
+            Item: {
+              date: '2026-08-01',
+              resumesUploaded: 50,
+            },
           };
         }
         return {};

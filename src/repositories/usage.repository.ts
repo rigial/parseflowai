@@ -1,7 +1,6 @@
 import {
   GetCommand,
   PutCommand,
-  QueryCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { dynamo } from '../services/dynamo.service';
@@ -38,12 +37,14 @@ export class UsageRepository {
     const expressionAttributeNames: Record<string, string> = {
       '#date': 'date',
       '#userId': 'userId',
+      '#customerId': 'customerId',
       '#entityType': 'entityType',
       '#updatedAt': 'updatedAt',
     };
     const expressionAttributeValues: Record<string, any> = {
       ':date': date,
       ':userId': userId,
+      ':customerId': userId,
       ':entityType': 'DAILY_USAGE',
       ':updatedAt': new Date().toISOString(),
     };
@@ -91,7 +92,7 @@ export class UsageRepository {
     }
 
     let updateExpression =
-      'SET #date = :date, #userId = :userId, #entityType = :entityType, #updatedAt = :updatedAt';
+      'SET #date = :date, #userId = :userId, #customerId = :customerId, #entityType = :entityType, #updatedAt = :updatedAt';
     if (addExpressions.length > 0) {
       updateExpression += ` ADD ${addExpressions.join(', ')}`;
     }
@@ -101,8 +102,7 @@ export class UsageRepository {
         new UpdateCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `USER#${userId}`,
-            SK: `USAGE#${date}`,
+            resumeId: `USAGE#${userId}#${date}`,
           },
           UpdateExpression: updateExpression,
           ExpressionAttributeNames: expressionAttributeNames,
@@ -128,8 +128,7 @@ export class UsageRepository {
         new GetCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `USER#${userId}`,
-            SK: `USAGE#${date}`,
+            resumeId: `USAGE#${userId}#${date}`,
           },
         })
       );
@@ -166,33 +165,21 @@ export class UsageRepository {
     startDate: string,
     endDate: string
   ): Promise<DailyUsage[]> {
+    const dates: string[] = [];
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+
+    while (current <= end) {
+      dates.push(current.toISOString().slice(0, 10));
+      current.setDate(current.getDate() + 1);
+    }
+
     try {
-      const response = await dynamo.send(
-        new QueryCommand({
-          TableName: env.DYNAMODB_TABLE_NAME,
-          KeyConditionExpression: 'PK = :pk AND SK BETWEEN :startSk AND :endSk',
-          ExpressionAttributeValues: {
-            ':pk': `USER#${userId}`,
-            ':startSk': `USAGE#${startDate}`,
-            ':endSk': `USAGE#${endDate}`,
-          },
-        })
+      const results = await Promise.all(
+        dates.map((date) => this.getDailyUsage(userId, date))
       );
 
-      if (!response.Items || response.Items.length === 0) {
-        return [];
-      }
-
-      return response.Items.map((item) => ({
-        date: item.date || item.SK.replace('USAGE#', ''),
-        requests: item.requests || 0,
-        resumesUploaded: item.resumesUploaded || 0,
-        resumesParsed: item.resumesParsed || 0,
-        parseFailures: item.parseFailures || 0,
-        inputTokens: item.inputTokens || 0,
-        outputTokens: item.outputTokens || 0,
-        totalTokens: item.totalTokens || 0,
-      }));
+      return results.filter((item): item is DailyUsage => item !== null);
     } catch (error: any) {
       logger.error('UsageRepository.getDailyUsageRange failed', {
         userId,
@@ -210,10 +197,12 @@ export class UsageRepository {
   static async recordResumeUsage(usage: ResumeUsage): Promise<void> {
     const eventId = generateId('ev');
     const item = {
-      PK: `USER#${usage.userId}`,
-      SK: `RESUME_EVENT#${usage.createdAt}#${eventId}`,
-      entityType: 'RESUME_EVENT',
       ...usage,
+      eventId,
+      resumeId: `EVENT#${eventId}`,
+      associatedResumeId: usage.resumeId,
+      customerId: usage.userId,
+      entityType: 'RESUME_EVENT',
     };
 
     try {
@@ -239,10 +228,12 @@ export class UsageRepository {
   static async recordTokenUsage(usage: TokenUsage): Promise<void> {
     const eventId = generateId('tok');
     const item = {
-      PK: `USER#${usage.userId}`,
-      SK: `TOKEN_EVENT#${usage.createdAt}#${eventId}`,
-      entityType: 'TOKEN_EVENT',
       ...usage,
+      eventId,
+      resumeId: `TOKEN#${eventId}`,
+      associatedResumeId: usage.resumeId,
+      customerId: usage.userId,
+      entityType: 'TOKEN_EVENT',
     };
 
     try {
@@ -267,8 +258,8 @@ export class UsageRepository {
   static async recordApiUsage(usage: ApiUsage): Promise<void> {
     const eventId = generateId('req');
     const item = {
-      PK: `USER#${usage.userId}`,
-      SK: `API_EVENT#${usage.createdAt}#${eventId}`,
+      resumeId: `API_REQ#${eventId}`,
+      customerId: usage.userId,
       entityType: 'API_EVENT',
       ...usage,
     };

@@ -19,13 +19,10 @@ describe('Parse Route (POST /v1/resumes/parse)', { concurrency: 1 }, () => {
   };
 
   const handleAuth = (command: any) => {
-    if (command.input?.Key?.PK === `APIKEY_HASH#${secretHash}`) {
+    if (command.input?.Key?.resumeId === `APIKEY_HASH#${secretHash}`) {
       return { Item: { userId: 'cust_test', keyId: 'key_test_1' } };
     }
-    if (
-      command.input?.Key?.PK === 'USER#cust_test' &&
-      command.input?.Key?.SK === 'APIKEY#key_test_1'
-    ) {
+    if (command.input?.Key?.resumeId === 'APIKEY#key_test_1') {
       return {
         Item: {
           keyId: 'key_test_1',
@@ -35,10 +32,7 @@ describe('Parse Route (POST /v1/resumes/parse)', { concurrency: 1 }, () => {
         },
       };
     }
-    if (
-      command.input?.Key?.PK === 'USER#cust_test' &&
-      command.input?.Key?.SK === 'PROFILE'
-    ) {
+    if (command.input?.Key?.resumeId === 'USER#cust_test') {
       return { Item: mockUser };
     }
     return null;

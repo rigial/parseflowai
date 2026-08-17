@@ -11,8 +11,8 @@ export class UserRepository {
    */
   static async createUser(user: User): Promise<User> {
     const userItem = {
-      PK: `USER#${user.userId}`,
-      SK: 'PROFILE',
+      resumeId: `USER#${user.userId}`,
+      customerId: user.userId,
       entityType: 'USER',
       userId: user.userId,
       email: user.email,
@@ -25,8 +25,7 @@ export class UserRepository {
     };
 
     const emailLookupItem = {
-      PK: `EMAIL#${user.email}`,
-      SK: 'USER',
+      resumeId: `EMAIL#${user.email}`,
       entityType: 'EMAIL_LOOKUP',
       email: user.email,
       userId: user.userId,
@@ -38,7 +37,7 @@ export class UserRepository {
         new PutCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Item: emailLookupItem,
-          ConditionExpression: 'attribute_not_exists(PK)',
+          ConditionExpression: 'attribute_not_exists(resumeId)',
         })
       );
 
@@ -77,8 +76,7 @@ export class UserRepository {
         new GetCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `USER#${userId}`,
-            SK: 'PROFILE',
+            resumeId: `USER#${userId}`,
           },
         })
       );
@@ -116,8 +114,7 @@ export class UserRepository {
         new GetCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `EMAIL#${normalizedEmail}`,
-            SK: 'USER',
+            resumeId: `EMAIL#${normalizedEmail}`,
           },
         })
       );
@@ -145,8 +142,7 @@ export class UserRepository {
         new UpdateCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `USER#${userId}`,
-            SK: 'PROFILE',
+            resumeId: `USER#${userId}`,
           },
           UpdateExpression: 'SET lastLoginAt = :lastLoginAt, updatedAt = :updatedAt',
           ExpressionAttributeValues: {

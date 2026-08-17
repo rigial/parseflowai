@@ -24,13 +24,10 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
   };
 
   const handleAuthDynamo = (command: any) => {
-    if (command.input?.Key?.PK === `APIKEY_HASH#${secretHash}`) {
+    if (command.input?.Key?.resumeId === `APIKEY_HASH#${secretHash}`) {
       return { Item: { userId: 'cust_enterprise_01', keyId: 'key_123' } };
     }
-    if (
-      command.input?.Key?.PK === 'USER#cust_enterprise_01' &&
-      command.input?.Key?.SK === 'APIKEY#key_123'
-    ) {
+    if (command.input?.Key?.resumeId === 'APIKEY#key_123') {
       return {
         Item: {
           keyId: 'key_123',
@@ -40,10 +37,7 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
         },
       };
     }
-    if (
-      command.input?.Key?.PK === 'USER#cust_enterprise_01' &&
-      command.input?.Key?.SK === 'PROFILE'
-    ) {
+    if (command.input?.Key?.resumeId === 'USER#cust_enterprise_01') {
       return { Item: mockUser };
     }
     return null;

@@ -666,11 +666,7 @@
 </main>
 
 <script>
-<<<<<<< Updated upstream
-    const PARSE_ENDPOINT = 'https://xaz11sovtd.execute-api.ap-south-1.amazonaws.com/v1/resumes/parse';
-=======
     const PARSE_ENDPOINT = '/v1/resumes/parse';
->>>>>>> Stashed changes
 
     // Preset schemas
     const PRESETS = {
@@ -750,11 +746,14 @@
     if (savedKey) {
         apiKeyInput.value = savedKey;
     }
-    apiKeyInput.addEventListener('change', () => {
+    const saveParseKey = () => {
         if (apiKeyInput.value.trim()) {
             localStorage.setItem('parseflow_active_api_key', apiKeyInput.value.trim());
         }
-    });
+    };
+    apiKeyInput.addEventListener('input', saveParseKey);
+    apiKeyInput.addEventListener('change', saveParseKey);
+    apiKeyInput.addEventListener('paste', () => setTimeout(saveParseKey, 50));
 
     // Check for query parameters (?resumeId=...)
     const urlParams = new URLSearchParams(window.location.search);

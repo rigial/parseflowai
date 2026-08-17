@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { dynamo } from '../services/dynamo.service';
 import { env } from '../lib/env';
 import { logger } from '../lib/logger';
@@ -12,11 +12,12 @@ export class SessionRepository {
     const expiresAtSeconds = Math.floor(new Date(session.expiresAt).getTime() / 1000);
 
     const item = {
-      PK: `SESSION#${session.sessionId}`,
-      SK: 'SESSION',
+      resumeId: `SESSION#${session.sessionId}`,
+      customerId: session.userId,
       entityType: 'SESSION',
       sessionId: session.sessionId,
       userId: session.userId,
+      status: 'active',
       createdAt: session.createdAt,
       expiresAt: session.expiresAt,
       ttl: expiresAtSeconds,
@@ -41,7 +42,7 @@ export class SessionRepository {
 
   /**
    * Retrieves a session by its sessionId.
-   * Returns null if not found or expired.
+   * Returns null if not found, invalidated, or expired.
    */
   static async getSession(sessionId: string): Promise<Session | null> {
     try {
@@ -49,13 +50,12 @@ export class SessionRepository {
         new GetCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `SESSION#${sessionId}`,
-            SK: 'SESSION',
+            resumeId: `SESSION#${sessionId}`,
           },
         })
       );
 
-      if (!response.Item) {
+      if (!response.Item || response.Item.status === 'invalidated') {
         return null;
       }
 
@@ -80,16 +80,26 @@ export class SessionRepository {
   }
 
   /**
-   * Deletes a session from DynamoDB.
+   * Invalidates a session in DynamoDB by setting status to invalidated and expiresAt to past.
+   * Uses UpdateCommand so it doesn't require dynamodb:DeleteItem IAM permissions.
    */
   static async deleteSession(sessionId: string): Promise<void> {
     try {
       await dynamo.send(
-        new DeleteCommand({
+        new UpdateCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `SESSION#${sessionId}`,
-            SK: 'SESSION',
+            resumeId: `SESSION#${sessionId}`,
+          },
+          UpdateExpression: 'SET expiresAt = :expired, #status = :status, #ttl = :ttl',
+          ExpressionAttributeNames: {
+            '#status': 'status',
+            '#ttl': 'ttl',
+          },
+          ExpressionAttributeValues: {
+            ':expired': '1970-01-01T00:00:00.000Z',
+            ':status': 'invalidated',
+            ':ttl': 0,
           },
         })
       );

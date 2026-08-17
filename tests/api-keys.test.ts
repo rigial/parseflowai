@@ -10,6 +10,7 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
   });
 
   const mockSession = {
+    resumeId: 'SESSION#ses_test_session',
     sessionId: 'ses_test_session',
     userId: 'usr_owner_123',
     createdAt: new Date().toISOString(),
@@ -17,6 +18,7 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
   };
 
   const mockUser = {
+    resumeId: 'USER#usr_owner_123',
     userId: 'usr_owner_123',
     email: 'dev@example.com',
     status: 'active',
@@ -27,10 +29,10 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
     it('creates a new API key and returns plaintext secret ONLY once', async () => {
       const itemsWritten: any[] = [];
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'SESSION#ses_test_session') {
+        if (command.input?.Key?.resumeId === 'SESSION#ses_test_session') {
           return { Item: mockSession };
         }
-        if (command.input?.Key?.PK === 'USER#usr_owner_123' && command.input?.Key?.SK === 'PROFILE') {
+        if (command.input?.Key?.resumeId === 'USER#usr_owner_123') {
           return { Item: mockUser };
         }
         if (command.input?.Item) {
@@ -91,6 +93,8 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
     it('returns only safe metadata without sensitive secrets or hashes', async () => {
       const mockKeyItems = [
         {
+          resumeId: 'APIKEY#key_1',
+          entityType: 'API_KEY',
           keyId: 'key_1',
           userId: 'usr_owner_123',
           name: 'CI/CD Pipeline',
@@ -104,14 +108,17 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
       ];
 
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'SESSION#ses_test_session') {
+        if (command.input?.Key?.resumeId === 'SESSION#ses_test_session') {
           return { Item: mockSession };
         }
-        if (command.input?.Key?.PK === 'USER#usr_owner_123' && command.input?.Key?.SK === 'PROFILE') {
+        if (command.input?.Key?.resumeId === 'USER#usr_owner_123') {
           return { Item: mockUser };
         }
-        if (command.input?.KeyConditionExpression) {
+        if (command.input?.IndexName === 'customerId-createdAt-index') {
           return { Items: mockKeyItems };
+        }
+        if (command.input?.Key?.resumeId === 'APIKEY#key_1') {
+          return { Item: mockKeyItems[0] };
         }
         return {};
       });
@@ -140,19 +147,20 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
     it('revokes an API key successfully', async () => {
       let updateCommandExecuted: any = null;
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'SESSION#ses_test_session') {
+        if (command.input?.Key?.resumeId === 'SESSION#ses_test_session') {
           return { Item: mockSession };
         }
-        if (command.input?.Key?.PK === 'USER#usr_owner_123' && command.input?.Key?.SK === 'PROFILE') {
+        if (command.input?.Key?.resumeId === 'USER#usr_owner_123') {
           return { Item: mockUser };
         }
-        if (command.input?.Key?.SK?.startsWith('APIKEY#') && command.input?.UpdateExpression) {
+        if (command.input?.Key?.resumeId === 'APIKEY#key_to_revoke' && command.input?.UpdateExpression) {
           updateCommandExecuted = command;
           return {};
         }
-        if (command.input?.Key?.SK === 'APIKEY#key_to_revoke') {
+        if (command.input?.Key?.resumeId === 'APIKEY#key_to_revoke') {
           return {
             Item: {
+              resumeId: 'APIKEY#key_to_revoke',
               keyId: 'key_to_revoke',
               userId: 'usr_owner_123',
               name: 'Old Key',
@@ -186,13 +194,14 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
     it('authenticates valid Bearer token and attaches user context', async () => {
       mock.method(dynamo, 'send', async (command: any) => {
         // 1. API key lookup by hash
-        if (command.input?.Key?.PK === `APIKEY_HASH#${secretHash}`) {
+        if (command.input?.Key?.resumeId === `APIKEY_HASH#${secretHash}`) {
           return { Item: { userId: 'usr_owner_123', keyId: 'key_valid_123' } };
         }
         // 2. Fetch full key
-        if (command.input?.Key?.PK === 'USER#usr_owner_123' && command.input?.Key?.SK === 'APIKEY#key_valid_123') {
+        if (command.input?.Key?.resumeId === 'APIKEY#key_valid_123') {
           return {
             Item: {
+              resumeId: 'APIKEY#key_valid_123',
               keyId: 'key_valid_123',
               userId: 'usr_owner_123',
               secretHash,
@@ -201,7 +210,7 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
           };
         }
         // 3. Fetch user
-        if (command.input?.Key?.PK === 'USER#usr_owner_123' && command.input?.Key?.SK === 'PROFILE') {
+        if (command.input?.Key?.resumeId === 'USER#usr_owner_123') {
           return { Item: mockUser };
         }
         return {};
@@ -253,12 +262,13 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
 
     it('rejects revoked API key with 401 API_KEY_REVOKED', async () => {
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === `APIKEY_HASH#${secretHash}`) {
+        if (command.input?.Key?.resumeId === `APIKEY_HASH#${secretHash}`) {
           return { Item: { userId: 'usr_owner_123', keyId: 'key_revoked_123' } };
         }
-        if (command.input?.Key?.PK === 'USER#usr_owner_123' && command.input?.Key?.SK === 'APIKEY#key_revoked_123') {
+        if (command.input?.Key?.resumeId === 'APIKEY#key_revoked_123') {
           return {
             Item: {
+              resumeId: 'APIKEY#key_revoked_123',
               keyId: 'key_revoked_123',
               userId: 'usr_owner_123',
               secretHash,
@@ -286,12 +296,13 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
 
     it('rejects API key from suspended user with 403 UNAUTHORIZED', async () => {
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === `APIKEY_HASH#${secretHash}`) {
+        if (command.input?.Key?.resumeId === `APIKEY_HASH#${secretHash}`) {
           return { Item: { userId: 'usr_owner_123', keyId: 'key_valid_123' } };
         }
-        if (command.input?.Key?.PK === 'USER#usr_owner_123' && command.input?.Key?.SK === 'APIKEY#key_valid_123') {
+        if (command.input?.Key?.resumeId === 'APIKEY#key_valid_123') {
           return {
             Item: {
+              resumeId: 'APIKEY#key_valid_123',
               keyId: 'key_valid_123',
               userId: 'usr_owner_123',
               secretHash,
@@ -299,7 +310,7 @@ describe('API Key Management & Authentication (/v1/api-keys)', { concurrency: 1 
             },
           };
         }
-        if (command.input?.Key?.PK === 'USER#usr_owner_123' && command.input?.Key?.SK === 'PROFILE') {
+        if (command.input?.Key?.resumeId === 'USER#usr_owner_123') {
           return { Item: { ...mockUser, status: 'suspended' } };
         }
         return {};

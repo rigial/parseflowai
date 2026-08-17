@@ -15,8 +15,8 @@ export class ApiKeyRepository {
    */
   static async createApiKey(apiKey: ApiKey): Promise<ApiKey> {
     const userApiKeyItem = {
-      PK: `USER#${apiKey.userId}`,
-      SK: `APIKEY#${apiKey.keyId}`,
+      resumeId: `APIKEY#${apiKey.keyId}`,
+      customerId: apiKey.userId,
       entityType: 'API_KEY',
       keyId: apiKey.keyId,
       userId: apiKey.userId,
@@ -31,8 +31,7 @@ export class ApiKeyRepository {
     };
 
     const lookupItem = {
-      PK: `APIKEY_HASH#${apiKey.secretHash}`,
-      SK: 'LOOKUP',
+      resumeId: `APIKEY_HASH#${apiKey.secretHash}`,
       entityType: 'API_KEY_LOOKUP',
       userId: apiKey.userId,
       keyId: apiKey.keyId,
@@ -76,8 +75,7 @@ export class ApiKeyRepository {
         new GetCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `APIKEY_HASH#${secretHash}`,
-            SK: 'LOOKUP',
+            resumeId: `APIKEY_HASH#${secretHash}`,
           },
         })
       );
@@ -107,13 +105,12 @@ export class ApiKeyRepository {
         new GetCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `USER#${userId}`,
-            SK: `APIKEY#${keyId}`,
+            resumeId: `APIKEY#${keyId}`,
           },
         })
       );
 
-      if (!response.Item) {
+      if (!response.Item || (userId && response.Item.userId !== userId)) {
         return null;
       }
 
@@ -140,17 +137,17 @@ export class ApiKeyRepository {
   }
 
   /**
-   * Lists all API keys belonging to a specific user.
+   * Lists all API keys belonging to a specific user using GSI customerId-createdAt-index.
    */
   static async listApiKeysByUserId(userId: string): Promise<ApiKey[]> {
     try {
       const response = await dynamo.send(
         new QueryCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
-          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+          IndexName: 'customerId-createdAt-index',
+          KeyConditionExpression: 'customerId = :cid',
           ExpressionAttributeValues: {
-            ':pk': `USER#${userId}`,
-            ':skPrefix': 'APIKEY#',
+            ':cid': userId,
           },
         })
       );
@@ -159,18 +156,50 @@ export class ApiKeyRepository {
         return [];
       }
 
-      return response.Items.map((item) => ({
-        keyId: item.keyId,
-        userId: item.userId,
-        name: item.name,
-        keyPrefix: item.keyPrefix,
-        secretHash: item.secretHash,
-        environment: item.environment,
-        status: item.status,
-        createdAt: item.createdAt,
-        lastUsedAt: item.lastUsedAt,
-        revokedAt: item.revokedAt,
-      }));
+      const keyItems = response.Items.filter(
+        (item) =>
+          item.resumeId &&
+          (item.resumeId.startsWith('APIKEY#') || item.entityType === 'API_KEY')
+      );
+
+      if (keyItems.length === 0) {
+        return [];
+      }
+
+      const fullRecords = await Promise.all(
+        keyItems.map(async (item) => {
+          const keyId = item.keyId || item.resumeId.replace('APIKEY#', '');
+          const res = await dynamo.send(
+            new GetCommand({
+              TableName: env.DYNAMODB_TABLE_NAME,
+              Key: {
+                resumeId: `APIKEY#${keyId}`,
+              },
+            })
+          );
+          return res.Item;
+        })
+      );
+
+      return fullRecords
+        .filter(
+          (rec): rec is Record<string, any> =>
+            !!rec && (!rec.entityType || rec.entityType === 'API_KEY')
+        )
+        .map((item) => ({
+          keyId: item.keyId || item.resumeId.replace('APIKEY#', ''),
+          userId: item.userId || userId,
+          name: item.name || 'API Key',
+          keyPrefix:
+            item.keyPrefix ||
+            (item.keyId ? `pf_live_${item.keyId.slice(0, 8)}...` : 'pf_live_...'),
+          secretHash: item.secretHash || '',
+          environment: item.environment || 'live',
+          status: item.status || 'active',
+          createdAt: item.createdAt || new Date().toISOString(),
+          lastUsedAt: item.lastUsedAt,
+          revokedAt: item.revokedAt,
+        }));
     } catch (error: any) {
       logger.error('ApiKeyRepository.listApiKeysByUserId failed', {
         userId,
@@ -191,8 +220,7 @@ export class ApiKeyRepository {
         new UpdateCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `USER#${userId}`,
-            SK: `APIKEY#${keyId}`,
+            resumeId: `APIKEY#${keyId}`,
           },
           UpdateExpression: 'SET #status = :status, revokedAt = :revokedAt',
           ExpressionAttributeNames: {
@@ -229,8 +257,7 @@ export class ApiKeyRepository {
         new UpdateCommand({
           TableName: env.DYNAMODB_TABLE_NAME,
           Key: {
-            PK: `USER#${userId}`,
-            SK: `APIKEY#${keyId}`,
+            resumeId: `APIKEY#${keyId}`,
           },
           UpdateExpression: 'SET lastUsedAt = :lastUsedAt',
           ExpressionAttributeValues: {

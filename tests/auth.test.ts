@@ -38,8 +38,8 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
 
       // Verify email lookup item and user profile written
       assert.strictEqual(itemsWritten.length, 2);
-      const emailItem = itemsWritten.find((i) => i.PK === 'EMAIL#test.user@example.com');
-      const userItem = itemsWritten.find((i) => i.PK.startsWith('USER#'));
+      const emailItem = itemsWritten.find((i) => i.resumeId === 'EMAIL#test.user@example.com');
+      const userItem = itemsWritten.find((i) => i.resumeId.startsWith('USER#'));
 
       assert.ok(emailItem);
       assert.ok(userItem);
@@ -52,10 +52,10 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
 
     it('rejects duplicate email address with 409 EMAIL_ALREADY_EXISTS', async () => {
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'EMAIL#duplicate@example.com') {
-          return { Item: { PK: 'EMAIL#duplicate@example.com', userId: 'usr_existing' } };
+        if (command.input?.Key?.resumeId === 'EMAIL#duplicate@example.com') {
+          return { Item: { resumeId: 'EMAIL#duplicate@example.com', userId: 'usr_existing' } };
         }
-        if (command.input?.Key?.PK === 'USER#usr_existing') {
+        if (command.input?.Key?.resumeId === 'USER#usr_existing') {
           return {
             Item: {
               userId: 'usr_existing',
@@ -121,8 +121,7 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
   describe('POST /v1/auth/login', () => {
     const validPassword = 'correctPassword123';
     const mockUserRecord = {
-      PK: 'USER#usr_test123',
-      SK: 'PROFILE',
+      resumeId: 'USER#usr_test123',
       userId: 'usr_test123',
       email: 'login@example.com',
       passwordHash: hashPassword(validPassword),
@@ -135,10 +134,10 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
     it('authenticates valid credentials, creates session, and sets session cookie (200)', async () => {
       let sessionItemCreated: any = null;
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'EMAIL#login@example.com') {
+        if (command.input?.Key?.resumeId === 'EMAIL#login@example.com') {
           return { Item: { userId: 'usr_test123' } };
         }
-        if (command.input?.Key?.PK === 'USER#usr_test123' && command.input?.Key?.SK === 'PROFILE') {
+        if (command.input?.Key?.resumeId === 'USER#usr_test123') {
           return { Item: mockUserRecord };
         }
         if (command.input?.Item?.entityType === 'SESSION') {
@@ -177,10 +176,10 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
 
     it('rejects invalid password with 401 INVALID_CREDENTIALS', async () => {
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'EMAIL#login@example.com') {
+        if (command.input?.Key?.resumeId === 'EMAIL#login@example.com') {
           return { Item: { userId: 'usr_test123' } };
         }
-        if (command.input?.Key?.PK === 'USER#usr_test123' && command.input?.Key?.SK === 'PROFILE') {
+        if (command.input?.Key?.resumeId === 'USER#usr_test123') {
           return { Item: mockUserRecord };
         }
         return {};
@@ -223,10 +222,10 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
 
     it('rejects suspended user with 403 UNAUTHORIZED', async () => {
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'EMAIL#suspended@example.com') {
+        if (command.input?.Key?.resumeId === 'EMAIL#suspended@example.com') {
           return { Item: { userId: 'usr_suspended' } };
         }
-        if (command.input?.Key?.PK === 'USER#usr_suspended' && command.input?.Key?.SK === 'PROFILE') {
+        if (command.input?.Key?.resumeId === 'USER#usr_suspended') {
           return {
             Item: {
               ...mockUserRecord,
@@ -258,7 +257,7 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
   describe('Session Management & /v1/auth/logout', () => {
     it('returns current user details on GET /v1/auth/me when valid session cookie provided', async () => {
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'SESSION#ses_valid123') {
+        if (command.input?.Key?.resumeId === 'SESSION#ses_valid123') {
           return {
             Item: {
               sessionId: 'ses_valid123',
@@ -268,7 +267,7 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
             },
           };
         }
-        if (command.input?.Key?.PK === 'USER#usr_test123' && command.input?.Key?.SK === 'PROFILE') {
+        if (command.input?.Key?.resumeId === 'USER#usr_test123') {
           return {
             Item: {
               userId: 'usr_test123',
@@ -309,7 +308,7 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
 
     it('rejects GET /v1/auth/me with 401 when session is expired', async () => {
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'SESSION#ses_expired') {
+        if (command.input?.Key?.resumeId === 'SESSION#ses_expired') {
           return {
             Item: {
               sessionId: 'ses_expired',
@@ -336,7 +335,7 @@ describe('Auth Endpoints & Lifecycle (/v1/auth)', { concurrency: 1 }, () => {
     it('invalidates session and clears cookie on POST /v1/auth/logout', async () => {
       let sessionDeleted = false;
       mock.method(dynamo, 'send', async (command: any) => {
-        if (command.input?.Key?.PK === 'SESSION#ses_logout123') {
+        if (command.input?.Key?.resumeId === 'SESSION#ses_logout123') {
           sessionDeleted = true;
         }
         return {};

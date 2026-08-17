@@ -333,7 +333,7 @@
             <button id="clear-btn" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">&times;</button>
         </div>
 
-        <button id="upload-btn" class="btn" disabled>Upload to S3</button>
+        <button id="upload-btn" class="btn">Upload to S3</button>
 
         <div id="status"></div>
         <div id="next-action" style="display: none;">
@@ -345,11 +345,7 @@
 </main>
 
 <script>
-<<<<<<< Updated upstream
-    const API_URL = 'https://xaz11sovtd.execute-api.ap-south-1.amazonaws.com/v1/resumes/upload-url';
-=======
     const API_URL = '/v1/resumes/upload-url';
->>>>>>> Stashed changes
     
     const fileInput = document.getElementById('file-input');
     const uploadArea = document.getElementById('upload-area');
@@ -370,11 +366,14 @@
         apiKeyInput.value = savedKey;
     }
 
-    apiKeyInput.addEventListener('change', () => {
+    const saveKey = () => {
         if (apiKeyInput.value.trim()) {
             localStorage.setItem('parseflow_active_api_key', apiKeyInput.value.trim());
         }
-    });
+    };
+    apiKeyInput.addEventListener('input', saveKey);
+    apiKeyInput.addEventListener('change', saveKey);
+    apiKeyInput.addEventListener('paste', () => setTimeout(saveKey, 50));
 
     // Handle Drag & Drop
     uploadArea.addEventListener('dragover', (e) => {
@@ -411,7 +410,6 @@
         fileNameDisplay.textContent = file.name;
         uploadArea.style.display = 'none';
         fileInfo.style.display = 'flex';
-        uploadBtn.disabled = false;
         statusDiv.style.display = 'none';
         nextActionDiv.style.display = 'none';
     }
@@ -421,7 +419,6 @@
         fileInput.value = '';
         uploadArea.style.display = 'block';
         fileInfo.style.display = 'none';
-        uploadBtn.disabled = true;
         nextActionDiv.style.display = 'none';
     });
 
@@ -436,11 +433,16 @@
     }
 
     uploadBtn.addEventListener('click', async () => {
-        if (!selectedFile) return;
-
         const apiKey = apiKeyInput.value.trim();
         if (!apiKey) {
+            apiKeyInput.focus();
             showStatus('Please enter an API Key above or create one in the Dashboard.', 'error');
+            return;
+        }
+
+        if (!selectedFile) {
+            fileInput.click();
+            showStatus('Please select a PDF resume file to upload.', 'error');
             return;
         }
 
