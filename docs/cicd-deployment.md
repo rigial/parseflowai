@@ -143,34 +143,37 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
       # Step 9 — Deploy API Lambda code
       - name: Deploy API Lambda code
         run: |
           aws lambda update-function-code \
             --function-name parseflowai-api \
+            --region ${{ secrets.AWS_REGION || 'ap-south-1' }} \
             --zip-file fileb://dist/api.zip
 
       # Step 10 — Wait for API Lambda update to complete
       - name: Wait for API Lambda
         run: |
           aws lambda wait function-updated \
-            --function-name parseflowai-api
+            --function-name parseflowai-api \
+            --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
       # Step 11 — Update API Lambda env vars
       - name: Update API Lambda env vars
         run: |
           aws lambda update-function-configuration \
             --function-name parseflowai-api \
+            --region ${{ secrets.AWS_REGION || 'ap-south-1' }} \
             --environment "Variables={
               NODE_ENV=production,
               AWS_S3_BUCKET=${{ secrets.S3_BUCKET_NAME || 'parseflowai' }},
               S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME || 'parseflowai' }},
               S3_PRESIGNED_URL_EXPIRY=${{ secrets.S3_PRESIGNED_URL_EXPIRY || '900' }},
               MAX_FILE_SIZE_MB=${{ secrets.MAX_FILE_SIZE_MB || '5' }},
-              GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},
-              API_KEY_SECRET=${{ secrets.API_KEY_SECRET }},
+              GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY || 'dummy' }},
+              API_KEY_SECRET=${{ secrets.API_KEY_SECRET || 'rp_live_parseflow_secret' }},
               RESUME_TTL_HOURS=${{ secrets.RESUME_TTL_HOURS || '24' }},
               DYNAMODB_TABLE_NAME=${{ secrets.DYNAMODB_TABLE_NAME || 'parseflowai-resumes' }}
             }"
@@ -180,19 +183,22 @@ jobs:
         run: |
           aws lambda update-function-code \
             --function-name parseflowai-extractor \
+            --region ${{ secrets.AWS_REGION || 'ap-south-1' }} \
             --zip-file fileb://dist/extractor.zip
 
       # Step 13 — Wait for Extractor Lambda update to complete
       - name: Wait for Extractor Lambda
         run: |
           aws lambda wait function-updated \
-            --function-name parseflowai-extractor
+            --function-name parseflowai-extractor \
+            --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
       # Step 14 — Update Extractor Lambda env vars
       - name: Update Extractor Lambda env vars
         run: |
           aws lambda update-function-configuration \
             --function-name parseflowai-extractor \
+            --region ${{ secrets.AWS_REGION || 'ap-south-1' }} \
             --environment "Variables={
               NODE_ENV=production,
               AWS_S3_BUCKET=${{ secrets.S3_BUCKET_NAME || 'parseflowai' }},
