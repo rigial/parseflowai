@@ -12,7 +12,7 @@
 |---|---|
 | **Project** | ParseFlowAI |
 | **Type** | Developer API & Self-Serve SaaS — Resume → Structured JSON |
-| **Stage** | Backend Foundation (Auth, API Keys, Usage Tracking Complete) |
+| **Stage** | Full Stack (Auth, API Keys, Usage Tracking, Web Dashboard Complete) |
 | **PRD Source** | `PRD.md` & `docs/PARSEFLOWAI_AUTH_API_KEYS_USAGE.md` |
 | **Key Differentiator** | "Give us any resume and the JSON schema you need. ParseFlowAI returns the resume in exactly that structure." |
 
@@ -59,10 +59,27 @@
 
 ---
 
+## Web Pages (Frontend UI)
+
+| Page | URL | Purpose |
+|---|---|---|
+| 🔐 Auth | `/auth.html` | Sign in & create account with session cookies |
+| 📊 Dashboard | `/dashboard.html` | Usage metrics, monthly quota, daily chart, API key management |
+| 📤 Upload Demo | `/index.html` | Test S3 upload presigned URL generation & file upload |
+| ⚡ Parse Demo | `/parse.html` | Test custom JSON schema resume extraction with live token feedback |
+
+---
+
 ## Project Structure (Canonical)
 
 ```
 parseflowai/
+│
+├── public/
+│   ├── auth.html             ← Authentication portal (Sign In / Sign Up)
+│   ├── dashboard.html        ← Developer portal & usage analytics
+│   ├── index.html            ← S3 presigned upload demo
+│   └── parse.html            ← JSON parsing with custom schema & tokens
 │
 ├── src/
 │   ├── index.ts              ← Lambda entry point
@@ -121,9 +138,9 @@ parseflowai/
 │       └── logger.ts         ← Safe logger (no PII)
 │
 ├── tests/
-│   ├── auth.test.ts          ← Unit & integration tests for auth flow
-│   ├── api-keys.test.ts      ← Unit & integration tests for API keys
-│   ├── usage.test.ts         ← Unit & integration tests for usage tracking
+│   ├── auth.test.ts          ← Unit & integration tests for auth routes & sessions
+│   ├── api-keys.test.ts      ← Unit & integration tests for API key management & auth
+│   ├── usage.test.ts         ← Unit & integration tests for usage aggregation & quotas
 │   ├── upload.route.test.ts  ← Upload route tests with auth & extraction
 │   ├── parse.route.test.ts   ← Parse route tests with auth & user isolation
 │   ├── ai.service.test.ts    ← AI service & token usage tests
@@ -207,6 +224,12 @@ parseflowai/
 - [x] Resume endpoints protected with API key auth & user isolation enforced
 - [x] Comprehensive test suite (73 tests passing across 28 suites)
 
+### Phase 8 — Web Application & Developer Portal
+- [x] `public/auth.html` — Clean dual-mode Sign In / Sign Up with session cookie persistence
+- [x] `public/dashboard.html` — Full metrics dashboard, period filter, daily activity chart, quota progress bar, API key generation with one-time reveal, and key revocation
+- [x] `public/index.html` — S3 upload page with Bearer API key authentication & unified navigation
+- [x] `public/parse.html` — Resume parsing demo with schema presets, Bearer API key auth, token usage metadata, and unified navigation
+
 ---
 
 ## File Registry
@@ -216,6 +239,18 @@ parseflowai/
 | `PRD.md` | ✅ Exists | Source of truth for requirements |
 | `AICONTEXT.md` | ✅ Exists | This file — always update after changes |
 | `docs/PARSEFLOWAI_AUTH_API_KEYS_USAGE.md` | ✅ Exists | Specification for Auth, API Keys, and Usage tracking |
+| `docs/dynamo-service.md` | ✅ Exists | DynamoDB Service specification |
+| `docs/s3-event-trigger.md` | ✅ Exists | S3 Event Trigger + Extractor Lambda specification |
+| `docs/cicd-deployment.md` | ✅ Exists | CI/CD GitHub Actions to AWS Lambda specification |
+| `docs/ai-service-parse-endpoint.md` | ✅ Exists | AI Service + Parse endpoint specification |
+| `.github/workflows/deploy.yml` | ✅ Exists | GitHub Actions CI/CD for both Lambdas |
+| `public/auth.html` | ✅ Exists | Auth portal (Sign in / Sign up with session cookies) |
+| `public/dashboard.html` | ✅ Exists | Developer dashboard (usage metrics, daily charts, API keys) |
+| `public/index.html` | ✅ Exists | Test UI for presigned upload to S3 with API key auth |
+| `public/parse.html` | ✅ Exists | Test UI for resume parsing with schema editor, token display & API key |
+| `src/index.ts` | ✅ Exists | Lambda entry point for parseflowai-api (`index.handler`) |
+| `src/dev.ts` | ✅ Exists | Local dev server with `@hono/node-server` |
+| `src/extractor.ts` | ✅ Exists | Extractor Lambda handler (S3 event trigger) |
 | `src/types/auth.ts` | ✅ Exists | User, Session, ApiKey, and AppEnv type definitions |
 | `src/types/usage.ts` | ✅ Exists | Usage, Token, Daily, and Summary type definitions |
 | `src/utils/crypto.ts` | ✅ Exists | Scrypt password hashing, SHA-256, API key generation |
@@ -223,6 +258,8 @@ parseflowai/
 | `src/schemas/auth.schema.ts` | ✅ Exists | Zod validation for signup & login |
 | `src/schemas/api-key.schema.ts` | ✅ Exists | Zod validation for API key creation |
 | `src/schemas/usage.schema.ts` | ✅ Exists | Zod validation for usage query parameters |
+| `src/schemas/upload.schema.ts` | ✅ Exists | Upload request validation schema |
+| `src/schemas/parse.schema.ts` | ✅ Exists | Shorthand schema validator and parse request schema |
 | `src/repositories/user.repository.ts` | ✅ Exists | User profile & email index single-table operations |
 | `src/repositories/session.repository.ts` | ✅ Exists | Session management with TTL in DynamoDB |
 | `src/repositories/api-key.repository.ts` | ✅ Exists | API key storage, safe listing, and hash lookup |
@@ -245,12 +282,19 @@ parseflowai/
 | `src/routes/usage.ts` | ✅ Exists | Usage summary & daily metrics endpoints |
 | `src/routes/resumes.ts` | ✅ Exists | Upload URL route with API key protection & quota check |
 | `src/routes/parse.ts` | ✅ Exists | Parse route with API key protection & token tracking |
+| `src/routes/health.ts` | ✅ Exists | Health check route |
+| `src/lib/env.ts` | ✅ Exists | Validated env vars with Zod schema |
+| `src/lib/logger.ts` | ✅ Exists | Safe PII-free logger |
 | `tests/auth.test.ts` | ✅ Exists | Unit & integration tests for auth routes & sessions |
 | `tests/api-keys.test.ts` | ✅ Exists | Unit & integration tests for API key management & auth |
 | `tests/usage.test.ts` | ✅ Exists | Unit & integration tests for usage aggregation & quotas |
 | `tests/upload.route.test.ts` | ✅ Exists | Upload route tests with API key authentication |
 | `tests/parse.route.test.ts` | ✅ Exists | Parse route tests with API key auth & user isolation |
 | `tests/ai.service.test.ts` | ✅ Exists | AI service tests with token usage metadata |
+| `tests/dynamo.service.test.ts` | ✅ Exists | Unit tests for DynamoDB service |
+| `tests/pdf.service.test.ts` | ✅ Exists | Unit tests for PDF service |
+| `tests/s3.service.test.ts` | ✅ Exists | Unit tests for S3 service |
+| `tests/extractor.test.ts` | ✅ Exists | Unit tests for Extractor Lambda handler |
 
 ---
 
@@ -258,6 +302,22 @@ parseflowai/
 
 | # | Decision | Reason | Date |
 |---|---|---|---|
+| 1 | Use Gemini 2.5 Flash-Lite | Lowest AI cost for MVP; target ₹500–₹1,500/month infra spend | — |
+| 2 | AI layer isolated in `ai.service.ts` | So another model can be swapped in without touching routes or services | — |
+| 3 | Presigned S3 URLs for upload | Client uploads directly to S3; Lambda never handles binary file data | — |
+| 4 | Delete `/v1/resumes/:id` is post-MVP | Only 3 endpoints in v1: health, upload-url, parse | — |
+| 5 | Text-based PDF extraction locally | Avoid AI/cloud cost for text extraction where possible; fallback for scanned PDFs is a future feature | — |
+| 6 | Zod validation on AI output | AI can hallucinate structure; always validate before returning to client | — |
+| 7 | No PII in logs | Resumes contain sensitive data; logger must strip or never receive personal info | — |
+| 8 | Resumes auto-deleted after 24h | Configurable; default 24h via S3 lifecycle rule | — |
+| 9 | `pdf-parse` for PDF extraction | Lightweight, Buffer-based, no filesystem dependency — correct for Lambda | — |
+| 10 | Async PDF extraction via S3 trigger | `/upload-url` generates presigned URL & creates DynamoDB pending record; S3 trigger runs Extractor Lambda in background so client never waits | 2026-08-17 |
+| 11 | GitHub Actions chosen for CI/CD | Free tier (2000 min/month), zero infrastructure, native AWS credential support via `aws-actions/configure-aws-credentials` | 2026-08-17 |
+| 12 | `--external:@aws-sdk/*` in esbuild | AWS SDK excluded from bundle since Lambda runtime includes it, reduces bundle size significantly | 2026-08-17 |
+| 13 | Region `ap-south-1` for Lambdas & DynamoDB & S3 | Deployed in Mumbai (`ap-south-1`) with API Gateway v2 integration for low latency | 2026-08-17 |
+| 14 | `GEMINI_MODEL` kept as env var | Model name configurable via env var; avoids code deployment when changing model strings | 2026-08-17 |
+| 15 | Shorthand-to-Gemini schema converter | Customers use simple flat/nested shorthand (per PRD); `ai.service.ts` translates to Gemini JSON schema internally | 2026-08-17 |
+| 16 | All customer schema fields marked `required` | Forces consistent response shape rather than Gemini silently omitting fields it could not find | 2026-08-17 |
 | 17 | Salted scrypt for password hashing | Industry-standard crypto with random 16-byte salt and constant-time buffer comparison (`crypto.timingSafeEqual`) | 2026-08-17 |
 | 18 | `pf_live_` / `pf_test_` API key format | High entropy (256-bit), recognizable prefix, raw secret returned only once, SHA-256 stored | 2026-08-17 |
 | 19 | Fast API key lookup by hash | `APIKEY_HASH#<sha256>` partition key item enables O(1) Bearer authentication without scans or GSI queries | 2026-08-17 |
@@ -265,3 +325,4 @@ parseflowai/
 | 21 | Customer isolation on resume parsing | Resume parse endpoint verifies `record.userId === user.userId` to ensure complete tenant data isolation | 2026-08-17 |
 | 22 | Token usage capture from Gemini | Captured from `response.usageMetadata` (`promptTokenCount`, `candidatesTokenCount`, `totalTokenCount`) | 2026-08-17 |
 | 23 | Secure HTTP-only cookies for browser auth | Dashboard sessions use `HttpOnly`, `SameSite=Lax`, 30-day expiry to prevent XSS credential theft | 2026-08-17 |
+| 24 | Unified developer portal web app | Added `/auth.html` and `/dashboard.html` connected to live auth, usage, and key management endpoints | 2026-08-17 |

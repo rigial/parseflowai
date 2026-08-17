@@ -4,15 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ParseFlowAI - Upload Resume</title>
+    <meta name="description" content="Upload PDF resumes securely to S3 via presigned URLs and ParseFlowAI API.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #171717;
-            --primary-hover: #262626;
+            --primary: #18181b;
+            --primary-hover: #27272a;
             --bg: #fafafa;
             --surface: #ffffff;
             --surface-secondary: #f4f4f5;
             --border: #e4e4e7;
-            --border-focus: #a1a1aa;
+            --border-focus: #71717a;
             --text: #09090b;
             --text-muted: #71717a;
             --success: #16a34a;
@@ -24,7 +28,8 @@
             --radius-sm: 6px;
             --radius-md: 10px;
             --radius-lg: 14px;
-            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
         }
 
         * {
@@ -34,20 +39,21 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: var(--font-sans);
             background-color: var(--bg);
             color: var(--text);
             line-height: 1.5;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            -webkit-font-smoothing: antialiased;
         }
 
         /* Header Navigation */
         header {
             background-color: var(--surface);
             border-bottom: 1px solid var(--border);
-            padding: 0.875rem 1.5rem;
+            padding: 0.875rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -61,12 +67,13 @@
             align-items: center;
             gap: 0.5rem;
             text-decoration: none;
+            letter-spacing: -0.02em;
         }
 
         .logo-badge {
-            background-color: var(--text);
-            color: var(--surface);
-            font-size: 0.7rem;
+            background-color: var(--primary);
+            color: #ffffff;
+            font-size: 0.65rem;
             font-weight: 600;
             padding: 0.15rem 0.45rem;
             border-radius: 4px;
@@ -76,6 +83,7 @@
 
         nav {
             display: flex;
+            align-items: center;
             gap: 0.5rem;
         }
 
@@ -105,30 +113,69 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 2rem 1rem;
+            padding: 2.5rem 1rem;
         }
 
         .container {
             background-color: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
-            padding: 2rem;
+            padding: 2.25rem 2rem;
             width: 100%;
-            max-width: 500px;
+            max-width: 520px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
         }
 
         h1 {
             font-size: 1.5rem;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 0.35rem;
             letter-spacing: -0.025em;
+            color: var(--text);
         }
 
         p {
             color: var(--text-muted);
             margin-bottom: 1.5rem;
             font-size: 0.875rem;
+        }
+
+        /* API Key input box */
+        .api-key-section {
+            background-color: var(--surface-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.875rem 1rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .api-key-section label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .api-key-input {
+            width: 100%;
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            padding: 0.5rem 0.65rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background-color: var(--surface);
+            color: var(--text);
+            outline: none;
+        }
+
+        .api-key-input:focus {
+            border-color: var(--border-focus);
         }
 
         .upload-area {
@@ -168,40 +215,37 @@
             width: 100%;
             padding: 0.75rem 1rem;
             background-color: var(--primary);
-            color: white;
+            color: #ffffff;
             border: none;
             border-radius: var(--radius-sm);
+            font-family: inherit;
             font-size: 0.875rem;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.15s ease;
+            transition: all 0.15s ease;
             text-align: center;
             text-decoration: none;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             background-color: var(--primary-hover);
         }
 
         .btn:disabled {
-            background-color: var(--text-muted);
+            opacity: 0.6;
             cursor: not-allowed;
-            opacity: 0.7;
         }
 
         .btn-parse {
-            background-color: #2563eb;
+            background-color: var(--primary);
             margin-top: 0.75rem;
-        }
-
-        .btn-parse:hover {
-            background-color: #1d4ed8;
+            border: 1px solid var(--primary);
         }
 
         #status {
             margin-top: 1rem;
             font-size: 0.875rem;
-            padding: 0.875rem;
+            padding: 0.875rem 1rem;
             border-radius: var(--radius-sm);
             display: none;
             word-break: break-all;
@@ -239,8 +283,8 @@
 
         .resume-id-box {
             margin-top: 0.75rem;
-            padding: 0.65rem;
-            background: var(--surface-secondary);
+            padding: 0.65rem 0.85rem;
+            background: var(--surface);
             border-radius: var(--radius-sm);
             font-family: var(--font-mono);
             font-size: 0.8125rem;
@@ -253,20 +297,31 @@
 <body>
 
 <header>
-    <a href="index.html" class="logo">
+    <a href="/dashboard.html" class="logo">
         <span>ParseFlowAI</span>
-        <span class="logo-badge">API Test</span>
+        <span class="logo-badge">Developer Portal</span>
     </a>
     <nav>
-        <a href="index.html" class="nav-link active">1. Upload Resume</a>
-        <a href="parse.html" class="nav-link">2. Parse JSON</a>
+        <a href="/dashboard.html" class="nav-link">Dashboard</a>
+        <a href="/index.html" class="nav-link active">1. Upload Resume</a>
+        <a href="/parse.html" class="nav-link">2. Parse JSON</a>
+        <a href="/auth.html" class="nav-link" id="auth-link">Account</a>
     </nav>
 </header>
 
 <main>
     <div class="container">
-        <h1>Test File Upload</h1>
-        <p>Upload a PDF resume to test the presigned URL flow to S3.</p>
+        <h1>Upload Resume</h1>
+        <p>Generate a secure S3 upload URL and test the extraction pipeline.</p>
+
+        <!-- API Key Selection / Input -->
+        <div class="api-key-section">
+            <label for="api-key-input">
+                API Key (Bearer Auth)
+                <a href="/dashboard.html" style="text-decoration:none; color:var(--text); font-weight:600;">Get Key &rarr;</a>
+            </label>
+            <input type="password" id="api-key-input" class="api-key-input" placeholder="pf_live_...">
+        </div>
 
         <div id="upload-area" class="upload-area" onclick="document.getElementById('file-input').click()">
             <p>Click to select a PDF <br><span>or drag and drop here</span></p>
@@ -283,14 +338,18 @@
         <div id="status"></div>
         <div id="next-action" style="display: none;">
             <a id="proceed-to-parse-btn" href="parse.html" class="btn btn-parse">
-                Proceed to Parse with Schema &rarr;
+                Proceed to Parse with Custom Schema &rarr;
             </a>
         </div>
     </div>
 </main>
 
 <script>
+<<<<<<< Updated upstream
     const API_URL = 'https://xaz11sovtd.execute-api.ap-south-1.amazonaws.com/v1/resumes/upload-url';
+=======
+    const API_URL = '/v1/resumes/upload-url';
+>>>>>>> Stashed changes
     
     const fileInput = document.getElementById('file-input');
     const uploadArea = document.getElementById('upload-area');
@@ -301,8 +360,21 @@
     const statusDiv = document.getElementById('status');
     const nextActionDiv = document.getElementById('next-action');
     const proceedBtn = document.getElementById('proceed-to-parse-btn');
+    const apiKeyInput = document.getElementById('api-key-input');
 
     let selectedFile = null;
+
+    // Load active API Key from localStorage if present
+    const savedKey = localStorage.getItem('parseflow_active_api_key');
+    if (savedKey) {
+        apiKeyInput.value = savedKey;
+    }
+
+    apiKeyInput.addEventListener('change', () => {
+        if (apiKeyInput.value.trim()) {
+            localStorage.setItem('parseflow_active_api_key', apiKeyInput.value.trim());
+        }
+    });
 
     // Handle Drag & Drop
     uploadArea.addEventListener('dragover', (e) => {
@@ -366,19 +438,31 @@
     uploadBtn.addEventListener('click', async () => {
         if (!selectedFile) return;
 
+        const apiKey = apiKeyInput.value.trim();
+        if (!apiKey) {
+            showStatus('Please enter an API Key above or create one in the Dashboard.', 'error');
+            return;
+        }
+
         uploadBtn.disabled = true;
         uploadBtn.textContent = 'Generating URL...';
-        showStatus('Requesting secure upload link...', 'loading');
+        showStatus('Requesting presigned upload URL from ParseFlowAI API...', 'loading');
         nextActionDiv.style.display = 'none';
 
         try {
             // 1. Get Presigned URL
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            };
+
             const res = await fetch(API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     fileName: selectedFile.name,
-                    contentType: selectedFile.type
+                    contentType: selectedFile.type,
+                    fileSizeBytes: selectedFile.size
                 })
             });
 
@@ -392,7 +476,7 @@
 
             // 2. Upload to S3 directly
             uploadBtn.textContent = 'Uploading to S3...';
-            showStatus('Uploading file to AWS S3...', 'loading');
+            showStatus('Uploading file to AWS S3 storage...', 'loading');
 
             const s3Res = await fetch(uploadUrl, {
                 method: 'PUT',
@@ -403,7 +487,7 @@
             });
 
             if (!s3Res.ok) {
-                throw new Error(`S3 Upload failed: ${s3Res.statusText}. Make sure CORS is configured on your S3 bucket!`);
+                throw new Error(`S3 Upload failed (${s3Res.statusText}). Check S3 CORS configuration.`);
             }
 
             showStatus(

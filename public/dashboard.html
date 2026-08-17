@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParseFlowAI - Developer Dashboard & Usage Metrics</title>
+    <meta name="description" content="View ParseFlowAI usage metrics, token consumption, daily analytics, and manage API keys.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #18181b;
+            --primary-hover: #27272a;
+            --bg: #fafafa;
+            --surface: #ffffff;
+            --surface-secondary: #f4f4f5;
+            --surface-tertiary: #e4e4e7;
+            --border: #e4e4e7;
+            --border-focus: #71717a;
+            --text: #09090b;
+            --text-muted: #71717a;
+            --text-subtle: #a1a1aa;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --warning: #d97706;
+            --warning-bg: #fffbeb;
+            --warning-border: #fde68a;
+            --error: #dc2626;
+            --error-bg: #fef2f2;
+            --error-border: #fecaca;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Header */
+        header {
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0.875rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.125rem;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-badge {
+            background-color: var(--primary);
+            color: #ffffff;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.4rem 0.75rem;
+            border-radius: var(--radius-sm);
+            transition: all 0.15s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--text);
+            background-color: var(--surface-secondary);
+        }
+
+        .nav-link.active {
+            color: var(--text);
+            background-color: var(--surface-secondary);
+            font-weight: 600;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-left: 0.5rem;
+            padding-left: 1rem;
+            border-left: 1px solid var(--border);
+        }
+
+        .user-email-badge {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text);
+            background-color: var(--surface-secondary);
+            padding: 0.3rem 0.65rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+        }
+
+        .btn-logout {
+            background: none;
+            border: 1px solid var(--border);
+            padding: 0.35rem 0.7rem;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-logout:hover {
+            color: var(--error);
+            border-color: var(--error-border);
+            background-color: var(--error-bg);
+        }
+
+        /* Layout Container */
+        main {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Page Hero & Period Selector */
+        .dashboard-hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .dashboard-title h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+
+        .dashboard-title p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Period Switcher */
+        .period-selector {
+            display: inline-flex;
+            background-color: var(--surface);
+            padding: 0.25rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        }
+
+        .period-btn {
+            padding: 0.4rem 0.85rem;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .period-btn:hover {
+            color: var(--text);
+        }
+
+        .period-btn.active {
+            background-color: var(--primary);
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        /* Plan & Quota Banner */
+        .quota-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1.25rem;
+        }
+
+        .quota-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .plan-badge {
+            background-color: var(--primary);
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.25rem 0.6rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .quota-details h3 {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .quota-details p {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+        }
+
+        .quota-bar-wrapper {
+            flex: 1;
+            max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .quota-bar-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .quota-bar {
+            height: 6px;
+            background-color: var(--surface-secondary);
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .quota-progress {
+            height: 100%;
+            background-color: var(--primary);
+            border-radius: 9999px;
+            transition: width 0.4s ease;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 1rem;
+        }
+
+        .metric-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 1.25rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .metric-card:hover {
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+            transform: translateY(-1px);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric-title {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .metric-icon {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        .metric-value {
+            font-size: 1.875rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--text);
+            line-height: 1.1;
+        }
+
+        .metric-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        /* Section Containers */
+        .section-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title h2 {
+            font-size: 1.125rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text);
+        }
+
+        .section-title p {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 0.55rem 1rem;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* API Keys Table */
+        .table-responsive {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.875rem;
+        }
+
+        th {
+            padding: 0.75rem 1rem;
+            background-color: var(--bg);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 0.9rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .code-pill {
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            background-color: var(--surface-secondary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            color: var(--text);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .badge-active {
+            background-color: var(--success-bg);
+            color: var(--success);
+            border: 1px solid var(--success-border);
+        }
+
+        .badge-revoked {
+            background-color: var(--error-bg);
+            color: var(--error);
+            border: 1px solid var(--error-border);
+        }
+
+        .badge-live {
+            background-color: var(--surface-secondary);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-action {
+            background: none;
+            border: 1px solid var(--border);
+            padding: 0.3rem 0.6rem;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-action:hover {
+            background-color: var(--surface-secondary);
+        }
+
+        .btn-revoke {
+            color: var(--error);
+            border-color: var(--border);
+        }
+
+        .btn-revoke:hover {
+            background-color: var(--error-bg);
+            border-color: var(--error-border);
+        }
+
+        /* Daily Chart Bars */
+        .chart-container {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+            height: 140px;
+            padding: 1rem 0.5rem 0.5rem;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .chart-bar-col {
+            flex: 1;
+            min-width: 24px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .chart-bar {
+            width: 100%;
+            max-width: 32px;
+            background-color: var(--primary);
+            border-radius: 4px 4px 0 0;
+            min-height: 4px;
+            transition: height 0.3s ease, background-color 0.15s ease;
+        }
+
+        .chart-bar:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .chart-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(9, 9, 11, 0.4);
+            backdrop-filter: blur(2px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            padding: 1rem;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 500px;
+            padding: 1.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: scale(0.96);
+            transition: transform 0.2s ease;
+        }
+
+        .modal-overlay.open .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            margin-bottom: 1.25rem;
+        }
+
+        .modal-header h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+
+        .modal-header p {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-group input, .form-group select {
+            padding: 0.65rem 0.85rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--border-focus);
+            background-color: var(--surface);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn-cancel {
+            background: none;
+            border: 1px solid var(--border);
+            padding: 0.55rem 1rem;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        /* Key Reveal Box */
+        .key-reveal-card {
+            background-color: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .key-warning {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--warning);
+        }
+
+        .key-copy-box {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .key-copy-box input {
+            flex: 1;
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            background-color: #ffffff;
+            border: 1px solid var(--warning-border);
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--radius-sm);
+            color: var(--text);
+        }
+
+        /* Quickstart Code Block */
+        .code-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .code-tab-btn {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .code-tab-btn.active {
+            background-color: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+        }
+
+        pre {
+            background-color: #18181b;
+            color: #f4f4f5;
+            padding: 1.25rem;
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            line-height: 1.6;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2.5rem 1rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: var(--primary);
+            color: #ffffff;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.8125rem;
+            font-weight: 500;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.25s ease;
+            z-index: 60;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/dashboard.html" class="logo">
+        ParseFlowAI
+        <span class="logo-badge">Developer Portal</span>
+    </a>
+    <div class="header-nav">
+        <a href="/dashboard.html" class="nav-link active">Dashboard</a>
+        <a href="/index.html" class="nav-link">Upload Demo</a>
+        <a href="/parse.html" class="nav-link">Parse Demo</a>
+        <div class="user-menu" id="user-menu">
+            <span class="user-email-badge" id="nav-user-email">Loading...</span>
+            <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+        </div>
+    </div>
+</header>
+
+<main>
+    <!-- Top Hero Section -->
+    <div class="dashboard-hero">
+        <div class="dashboard-title">
+            <h1 id="welcome-title">Usage & API Keys</h1>
+            <p>Track resume extractions, token consumption, and manage developer keys.</p>
+        </div>
+
+        <div class="period-selector">
+            <button class="period-btn" data-period="today" onclick="setPeriod('today')">Today</button>
+            <button class="period-btn" data-period="7d" onclick="setPeriod('7d')">Last 7d</button>
+            <button class="period-btn" data-period="30d" onclick="setPeriod('30d')">Last 30d</button>
+            <button class="period-btn active" data-period="current_month" onclick="setPeriod('current_month')">This Month</button>
+            <button class="period-btn" data-period="previous_month" onclick="setPeriod('previous_month')">Prev Month</button>
+        </div>
+    </div>
+
+    <!-- Plan & Monthly Quota Banner -->
+    <div class="quota-card">
+        <div class="quota-info">
+            <span class="plan-badge" id="plan-badge">FREE PLAN</span>
+            <div class="quota-details">
+                <h3 id="plan-title">Free Developer Tier</h3>
+                <p id="plan-description">Up to 50 resumes and 1,000 API requests per month</p>
+            </div>
+        </div>
+        <div class="quota-bar-wrapper">
+            <div class="quota-bar-labels">
+                <span>Monthly Upload Quota</span>
+                <span id="quota-text">0 / 50 Resumes</span>
+            </div>
+            <div class="quota-bar">
+                <div class="quota-progress" id="quota-progress-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics Cards Grid -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Resumes Uploaded</span>
+                <span class="metric-icon">📤</span>
+            </div>
+            <div class="metric-value" id="metric-uploaded">0</div>
+            <div class="metric-sub">S3 upload presigned URLs issued</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Resumes Parsed</span>
+                <span class="metric-icon">⚡</span>
+            </div>
+            <div class="metric-value" id="metric-parsed">0</div>
+            <div class="metric-sub" id="metric-success-rate">100% success rate</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Parse Failures</span>
+                <span class="metric-icon">⚠️</span>
+            </div>
+            <div class="metric-value" id="metric-failures">0</div>
+            <div class="metric-sub">Failed text/AI extractions</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">AI Tokens</span>
+                <span class="metric-icon">🤖</span>
+            </div>
+            <div class="metric-value" id="metric-tokens">0</div>
+            <div class="metric-sub" id="metric-token-split">0 in / 0 out</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">API Requests</span>
+                <span class="metric-icon">🌐</span>
+            </div>
+            <div class="metric-value" id="metric-requests">0</div>
+            <div class="metric-sub">Authenticated API calls</div>
+        </div>
+    </div>
+
+    <!-- Daily Breakdown Chart & Table -->
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                <h2>Daily Parsing Activity</h2>
+                <p>Activity trend and token volume across the selected period</p>
+            </div>
+        </div>
+
+        <div class="chart-container" id="daily-chart">
+            <!-- Populated dynamically -->
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>API Requests</th>
+                        <th>Resumes Parsed</th>
+                        <th>AI Tokens Consumed</th>
+                    </tr>
+                </thead>
+                <tbody id="daily-table-body">
+                    <tr>
+                        <td colspan="4" class="empty-state">Loading daily usage analytics...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- API Key Management Section -->
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                <h2>Developer API Keys</h2>
+                <p>Manage API keys for server-to-server resume parsing</p>
+            </div>
+            <button class="btn-primary" onclick="openCreateKeyModal()">
+                + Create New API Key
+            </button>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Key Prefix</th>
+                        <th>Environment</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Last Used</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="api-keys-table-body">
+                    <tr>
+                        <td colspan="7" class="empty-state">Loading your API keys...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quickstart Integration Guide -->
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                <h2>Developer Quickstart</h2>
+                <p>Call ParseFlowAI directly from your application</p>
+            </div>
+        </div>
+
+        <div class="code-tabs">
+            <button class="code-tab-btn active" onclick="switchSnippet('curl')">cURL</button>
+            <button class="code-tab-btn" onclick="switchSnippet('node')">Node.js</button>
+            <button class="code-tab-btn" onclick="switchSnippet('python')">Python</button>
+        </div>
+
+        <pre><code id="code-snippet">Loading snippet...</code></pre>
+    </div>
+</main>
+
+<!-- Create API Key Modal -->
+<div class="modal-overlay" id="create-key-modal">
+    <div class="modal">
+        <div id="modal-step-form">
+            <div class="modal-header">
+                <h3>Create New API Key</h3>
+                <p>Generate a secret key to authenticate your backend requests.</p>
+            </div>
+
+            <form onsubmit="handleCreateApiKey(event)">
+                <div class="form-group">
+                    <label for="new-key-name">Key Name</label>
+                    <input type="text" id="new-key-name" required placeholder="e.g. Production Server, Staging API" autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="new-key-env">Environment</label>
+                    <select id="new-key-env">
+                        <option value="live">Live (pf_live_...)</option>
+                        <option value="test">Test (pf_test_...)</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeCreateKeyModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="btn-create-key">Generate Key</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="modal-step-reveal" style="display: none;">
+            <div class="modal-header">
+                <h3>API Key Created</h3>
+                <p>Please copy your API key now. It will never be shown again.</p>
+            </div>
+
+            <div class="key-reveal-card">
+                <div class="key-warning">
+                    ⚠️ Save this key in a secure secrets manager.
+                </div>
+                <div class="key-copy-box">
+                    <input type="text" id="revealed-key-input" readonly>
+                    <button type="button" class="btn-primary" onclick="copyRevealedKey()">Copy</button>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-primary" onclick="finishKeyReveal()">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast">Notification</div>
+
+<script>
+    let currentPeriod = 'current_month';
+    let currentUser = null;
+    let currentKeys = [];
+    let selectedSnippetLanguage = 'curl';
+
+    // Format numbers compactly (e.g. 1.2M, 45.2K)
+    function formatNumber(num) {
+        if (!num) return '0';
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+        return num.toLocaleString();
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.innerText = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Check Auth & Fetch User Details
+    async function loadUser() {
+        try {
+            const res = await fetch('/v1/auth/me');
+            if (!res.ok) {
+                window.location.href = '/auth.html';
+                return;
+            }
+            const data = await res.json();
+            currentUser = data.user;
+            document.getElementById('nav-user-email').innerText = currentUser.email;
+            document.getElementById('plan-badge').innerText = `${(currentUser.plan || 'FREE').toUpperCase()} PLAN`;
+            document.getElementById('welcome-title').innerText = `Welcome, ${currentUser.email.split('@')[0]}`;
+        } catch {
+            window.location.href = '/auth.html';
+        }
+    }
+
+    // Load Metrics
+    async function loadMetrics() {
+        try {
+            const res = await fetch(`/v1/usage?period=${currentPeriod}`);
+            if (!res.ok) return;
+            const data = await res.json();
+
+            document.getElementById('metric-uploaded').innerText = formatNumber(data.resumesUploaded);
+            document.getElementById('metric-parsed').innerText = formatNumber(data.resumesParsed);
+            document.getElementById('metric-failures').innerText = formatNumber(data.parseFailures);
+            document.getElementById('metric-tokens').innerText = formatNumber(data.totalTokens);
+            document.getElementById('metric-requests').innerText = formatNumber(data.requests);
+
+            const inTok = formatNumber(data.inputTokens);
+            const outTok = formatNumber(data.outputTokens);
+            document.getElementById('metric-token-split').innerText = `${inTok} in / ${outTok} out`;
+
+            const totalParses = (data.resumesParsed || 0) + (data.parseFailures || 0);
+            const rate = totalParses > 0 ? Math.round((data.resumesParsed / totalParses) * 100) : 100;
+            document.getElementById('metric-success-rate').innerText = `${rate}% success rate`;
+
+            // Update Quota Bar
+            const monthlyLimit = currentUser?.plan === 'pro' ? 500 : 50;
+            const percentage = Math.min(100, Math.round(((data.resumesUploaded || 0) / monthlyLimit) * 100));
+            document.getElementById('quota-text').innerText = `${data.resumesUploaded || 0} / ${monthlyLimit} Resumes`;
+            document.getElementById('quota-progress-bar').style.width = `${percentage}%`;
+        } catch (err) {
+            console.error('Failed to load metrics', err);
+        }
+    }
+
+    // Load Daily Breakdown
+    async function loadDaily() {
+        try {
+            const res = await fetch(`/v1/usage/daily?period=${currentPeriod}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const daily = data.daily || [];
+
+            const chart = document.getElementById('daily-chart');
+            const tbody = document.getElementById('daily-table-body');
+
+            if (daily.length === 0) {
+                chart.innerHTML = `<div class="empty-state" style="width:100%;">No activity recorded for this period.</div>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No activity records found.</td></tr>`;
+                return;
+            }
+
+            // Find maximum parsed for bar height scaling
+            const maxParsed = Math.max(1, ...daily.map(d => d.resumesParsed || d.requests || 0));
+
+            chart.innerHTML = daily.map(d => {
+                const count = d.resumesParsed || d.requests || 0;
+                const heightPct = Math.max(6, Math.round((count / maxParsed) * 100));
+                const dateLabel = d.date.slice(5); // MM-DD
+                return `
+                    <div class="chart-bar-col" title="${d.date}: ${count} parsed, ${d.tokens} tokens">
+                        <div class="chart-bar" style="height: ${heightPct}%;"></div>
+                        <span class="chart-label">${dateLabel}</span>
+                    </div>
+                `;
+            }).join('');
+
+            // Populate Table
+            tbody.innerHTML = daily.slice().reverse().map(d => `
+                <tr>
+                    <td style="font-weight: 500;">${d.date}</td>
+                    <td>${d.requests || 0}</td>
+                    <td>${d.resumesParsed || 0}</td>
+                    <td><span class="code-pill">${formatNumber(d.tokens || 0)}</span></td>
+                </tr>
+            `).join('');
+
+        } catch (err) {
+            console.error('Failed to load daily usage', err);
+        }
+    }
+
+    // Load API Keys
+    async function loadApiKeys() {
+        try {
+            const res = await fetch('/v1/api-keys');
+            if (!res.ok) return;
+            const data = await res.json();
+            currentKeys = data.apiKeys || [];
+
+            const tbody = document.getElementById('api-keys-table-body');
+            if (currentKeys.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            No API keys created yet. Click <strong>+ Create New API Key</strong> to get started.
+                        </td>
+                    </tr>
+                `;
+                updateCodeSnippet();
+                return;
+            }
+
+            tbody.innerHTML = currentKeys.map(key => {
+                const isActive = key.status === 'active';
+                const createdDate = new Date(key.createdAt).toLocaleDateString(undefined, {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                });
+                const lastUsed = key.lastUsedAt 
+                    ? new Date(key.lastUsedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                    : 'Never';
+
+                return `
+                    <tr>
+                        <td style="font-weight: 600;">${escapeHtml(key.name)}</td>
+                        <td>
+                            <span class="code-pill">
+                                ${key.keyPrefix}
+                            </span>
+                        </td>
+                        <td><span class="badge badge-live">${key.environment || 'live'}</span></td>
+                        <td>
+                            <span class="badge ${isActive ? 'badge-active' : 'badge-revoked'}">
+                                ${key.status}
+                            </span>
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 0.8125rem;">${createdDate}</td>
+                        <td style="color: var(--text-muted); font-size: 0.8125rem;">${lastUsed}</td>
+                        <td>
+                            ${isActive ? `
+                                <button class="btn-action btn-revoke" onclick="revokeKey('${key.id}')">Revoke</button>
+                            ` : `<span style="color: var(--text-subtle); font-size: 0.75rem;">Revoked</span>`}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            updateCodeSnippet();
+
+        } catch (err) {
+            console.error('Failed to load API keys', err);
+        }
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>'"]/g, tag => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        }[tag] || tag));
+    }
+
+    function setPeriod(period) {
+        currentPeriod = period;
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.period === period);
+        });
+        loadMetrics();
+        loadDaily();
+    }
+
+    // Modal Handlers
+    function openCreateKeyModal() {
+        document.getElementById('modal-step-form').style.display = 'block';
+        document.getElementById('modal-step-reveal').style.display = 'none';
+        document.getElementById('new-key-name').value = '';
+        document.getElementById('create-key-modal').classList.add('open');
+    }
+
+    function closeCreateKeyModal() {
+        document.getElementById('create-key-modal').classList.remove('open');
+    }
+
+    async function handleCreateApiKey(e) {
+        e.preventDefault();
+        const name = document.getElementById('new-key-name').value.trim();
+        const environment = document.getElementById('new-key-env').value;
+        const btn = document.getElementById('btn-create-key');
+
+        btn.disabled = true;
+        try {
+            const res = await fetch('/v1/api-keys', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, environment }),
+            });
+            const data = await res.json();
+
+            if (res.ok && data.apiKey) {
+                document.getElementById('modal-step-form').style.display = 'none';
+                document.getElementById('modal-step-reveal').style.display = 'block';
+                document.getElementById('revealed-key-input').value = data.apiKey.key;
+                
+                // Store active key for local playground convenience
+                localStorage.setItem('parseflow_active_api_key', data.apiKey.key);
+                loadApiKeys();
+            } else {
+                alert(data.error?.message || 'Failed to create API key');
+            }
+        } catch {
+            alert('Failed to connect to server.');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function copyRevealedKey() {
+        const input = document.getElementById('revealed-key-input');
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        showToast('API key copied to clipboard!');
+    }
+
+    function finishKeyReveal() {
+        closeCreateKeyModal();
+        showToast('API key ready for use');
+    }
+
+    async function revokeKey(keyId) {
+        if (!confirm('Are you sure you want to revoke this API key? Applications using this key will immediately be rejected.')) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/v1/api-keys/${keyId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('API key revoked successfully.');
+                loadApiKeys();
+            } else {
+                const data = await res.json();
+                alert(data.error?.message || 'Failed to revoke API key');
+            }
+        } catch {
+            alert('Network error while revoking key.');
+        }
+    }
+
+    async function handleLogout() {
+        try {
+            await fetch('/v1/auth/logout', { method: 'POST' });
+        } catch {}
+        localStorage.removeItem('parseflow_active_api_key');
+        window.location.href = '/auth.html';
+    }
+
+    // Code Snippet Generator
+    function switchSnippet(lang) {
+        selectedSnippetLanguage = lang;
+        document.querySelectorAll('.code-tab-btn').forEach(b => {
+            b.classList.toggle('active', b.innerText.toLowerCase() === lang);
+        });
+        updateCodeSnippet();
+    }
+
+    function updateCodeSnippet() {
+        const activeKey = localStorage.getItem('parseflow_active_api_key') || 'pf_live_YOUR_SECRET_KEY';
+        const codeEl = document.getElementById('code-snippet');
+
+        if (selectedSnippetLanguage === 'curl') {
+            codeEl.innerText = `# 1. Generate S3 upload URL
+curl -X POST https://xaz11sovtd.execute-api.ap-south-1.amazonaws.com/v1/resumes/upload-url \\
+  -H "Authorization: Bearer ${activeKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"fileName": "resume.pdf", "contentType": "application/pdf"}'
+
+# 2. Parse uploaded resume with your schema
+curl -X POST https://xaz11sovtd.execute-api.ap-south-1.amazonaws.com/v1/resumes/parse \\
+  -H "Authorization: Bearer ${activeKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "resumeId": "res_a1b2c3d4",
+    "schema": {
+      "name": "string",
+      "email": "string",
+      "skills": ["string"]
+    }
+  }'`;
+        } else if (selectedSnippetLanguage === 'node') {
+            codeEl.innerText = `// Node.js (v18+)
+const API_KEY = '${activeKey}';
+
+// Request structured extraction
+const response = await fetch('https://xaz11sovtd.execute-api.ap-south-1.amazonaws.com/v1/resumes/parse', {
+  method: 'POST',
+  headers: {
+    'Authorization': \`Bearer \${API_KEY}\`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    resumeId: 'res_a1b2c3d4',
+    schema: {
+      candidateName: 'string',
+      workExperienceYears: 'number',
+      technicalSkills: ['string']
+    }
+  })
+});
+
+const result = await response.json();
+console.log(result.data);`;
+        } else if (selectedSnippetLanguage === 'python') {
+            codeEl.innerText = `import requests
+
+API_KEY = "${activeKey}"
+
+# Parse resume with custom schema
+response = requests.post(
+    "https://xaz11sovtd.execute-api.ap-south-1.amazonaws.com/v1/resumes/parse",
+    headers={
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    },
+    json={
+        "resumeId": "res_a1b2c3d4",
+        "schema": {
+            "name": "string",
+            "education": [{"school": "string", "degree": "string"}],
+            "skills": ["string"]
+        }
+    }
+)
+
+print(response.json())`;
+        }
+    }
+
+    // Initialize Dashboard
+    (async function init() {
+        await loadUser();
+        loadMetrics();
+        loadDaily();
+        loadApiKeys();
+    })();
+</script>
+
+</body>
+</html>
