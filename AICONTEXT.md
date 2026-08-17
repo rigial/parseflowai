@@ -29,7 +29,7 @@
 | Compute | AWS Lambda |
 | API Gateway | AWS API Gateway |
 | Storage | AWS S3 |
-| AI Model | Gemini 2.5 Flash-Lite |
+| AI Model | Gemini 3.5 Flash-Lite |
 | Validation | Zod |
 | Build | esbuild |
 | Monitoring | CloudWatch |
@@ -42,9 +42,9 @@
 
 | Status | Method | Endpoint | Purpose |
 |---|---|---|---|
-| ⬜ Not started | GET | `/health` | Health check |
-| ⬜ Not started | POST | `/v1/resumes/upload-url` | Generate S3 presigned upload URL |
-| ⬜ Not started | POST | `/v1/resumes/parse` | Parse resume with custom schema |
+| ✅ Done | GET | `/health` | Health check |
+| ✅ Done | POST | `/v1/resumes/upload-url` | Generate S3 presigned upload URL |
+| ✅ Done | POST | `/v1/resumes/parse` | Parse resume with custom schema |
 | 🔜 Post-MVP | DELETE | `/v1/resumes/:id` | Delete resume |
 
 ---
@@ -119,17 +119,17 @@ parseflowai/
 - [x] Tested with sample resume PDF
 
 ### Phase 5 — AI Service
-- [ ] `src/services/ai.service.ts`
-- [ ] Gemini 2.5 Flash-Lite integration
-- [ ] Dynamic schema → prompt builder
-- [ ] Zod validation of AI response
-- [ ] Tested with real prompt
+- [x] `src/services/ai.service.ts`
+- [x] Gemini 2.5 / 3.1 Flash-Lite configurable integration
+- [x] Dynamic shorthand schema → Gemini responseSchema converter
+- [x] Zod validation of customer shorthand schema
+- [x] Tested with real prompt & unit tests
 
 ### Phase 6 — Parse Route
-- [ ] `src/schemas/parse.schema.ts`
-- [ ] `src/services/resume.service.ts`
-- [ ] `src/routes/parse.ts`
-- [ ] End-to-end tested
+- [x] `src/schemas/parse.schema.ts`
+- [x] `src/services/resume.service.ts`
+- [x] `src/routes/parse.ts`
+- [x] End-to-end tested
 
 ### Phase 7 — Security Hardening
 - [ ] API key auth middleware (`Authorization: Bearer rp_live_...`)
@@ -162,24 +162,32 @@ parseflowai/
 | `docs/dynamo-service.md` | ✅ Exists | DynamoDB Service specification |
 | `docs/s3-event-trigger.md` | ✅ Exists | S3 Event Trigger + Extractor Lambda specification |
 | `docs/cicd-deployment.md` | ✅ Exists | CI/CD GitHub Actions to AWS Lambda specification |
+| `docs/ai-service-parse-endpoint.md` | ✅ Exists | AI Service + Parse endpoint specification |
 | `.github/workflows/deploy.yml` | ✅ Exists | GitHub Actions CI/CD for both Lambdas |
+| `public/index.html` | ✅ Exists | Test UI for presigned upload to S3 |
+| `public/parse.html` | ✅ Exists | Test UI for resume parsing with schema editor & JSON viewer |
 | `src/index.ts` | ✅ Exists | Lambda entry point for parseflowai-api (`index.handler`) |
 | `src/dev.ts` | ✅ Exists | Local dev server with `@hono/node-server` |
 | `src/extractor.ts` | ✅ Exists | Extractor Lambda handler (S3 event trigger) |
 | `src/services/dynamo.service.ts` | ✅ Exists | DynamoDB operations: createRecord, getRecord, updateRecord |
 | `src/services/pdf.service.ts` | ✅ Exists | Text extraction from PDF buffer via pdf-parse |
 | `src/services/s3.service.ts` | ✅ Exists | Presigned URL generation and fetchFileFromS3 added |
+| `src/services/ai.service.ts` | ✅ Exists | Gemini abstraction with shorthand-to-Gemini converter |
+| `src/services/resume.service.ts` | ✅ Exists | Orchestrates parse flow: DynamoDB lookup, status branching, AI call |
 | `src/lib/env.ts` | ✅ Exists | Validated env vars with Zod schema |
 | `src/lib/logger.ts` | ✅ Exists | Safe PII-free logger |
 | `src/routes/health.ts` | ✅ Exists | Health check route |
 | `src/routes/resumes.ts` | ✅ Exists | Upload URL route with DynamoDB pending record creation |
-| `src/routes/parse.ts` | ✅ Exists | Parse resume route (stub) |
+| `src/routes/parse.ts` | ✅ Exists | Full implementation of /v1/resumes/parse and /parse |
 | `src/schemas/upload.schema.ts` | ✅ Exists | Upload request validation schema with fileSizeBytes & customerId |
+| `src/schemas/parse.schema.ts` | ✅ Exists | Shorthand schema validator and parse request schema |
 | `tests/dynamo.service.test.ts` | ✅ Exists | Unit tests for DynamoDB service |
 | `tests/pdf.service.test.ts` | ✅ Exists | Unit tests for PDF service |
 | `tests/s3.service.test.ts` | ✅ Exists | Unit tests for S3 service |
 | `tests/extractor.test.ts` | ✅ Exists | Unit tests for Extractor Lambda handler |
 | `tests/upload.route.test.ts` | ✅ Exists | Unit & end-to-end integration tests for /upload-url route and extractor |
+| `tests/ai.service.test.ts` | ✅ Exists | Unit tests for AI service and schema conversion |
+| `tests/parse.route.test.ts` | ✅ Exists | Integration tests for /v1/resumes/parse endpoint |
 
 ---
 
@@ -202,7 +210,9 @@ parseflowai/
 | 11 | GitHub Actions chosen for CI/CD | Free tier (2000 min/month), zero infrastructure, native AWS credential support via `aws-actions/configure-aws-credentials` | 2026-08-17 |
 | 12 | `--external:@aws-sdk/*` in esbuild | AWS SDK excluded from bundle since Lambda runtime includes it, reduces bundle size significantly | 2026-08-17 |
 | 13 | Region `ap-south-1` for Lambdas & DynamoDB & S3 | Deployed in Mumbai (`ap-south-1`) with API Gateway v2 integration for low latency | 2026-08-17 |
-
+| 14 | `GEMINI_MODEL` kept as env var | Model name configurable via env var; avoids code deployment when changing model strings | 2026-08-17 |
+| 15 | Shorthand-to-Gemini schema converter | Customers use simple flat/nested shorthand (per PRD); `ai.service.ts` translates to Gemini JSON schema internally | 2026-08-17 |
+| 16 | All customer schema fields marked `required` | Forces consistent response shape rather than Gemini silently omitting fields it could not find | 2026-08-17 |
 
 ---
 
@@ -218,6 +228,7 @@ parseflowai/
 | `S3_PRESIGNED_URL_EXPIRY` | ✅ | Seconds before upload URL expires (default: 900) |
 | `MAX_FILE_SIZE_MB` | ✅ | Max upload size in MB |
 | `GEMINI_API_KEY` | ✅ | Gemini API key |
+| `GEMINI_MODEL` | ✅ | Gemini model name (default: gemini-3.5-flash-lite) |
 | `API_KEY_SECRET` | ✅ | Shared secret for `rp_live_` bearer auth (MVP) |
 | `RESUME_TTL_HOURS` | ✅ | Hours before S3/DynamoDB record expires (default: 24) |
 | `NODE_ENV` | ✅ | `development` or `production` |
