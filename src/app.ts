@@ -13,5 +13,6 @@ app.route('/health', healthRoute);
 app.route('/v1/resumes', resumeRoute);
 app.route('/v1/resumes', parseRoute);
 app.route('/', resumeRoute);
+app.route('/', parseRoute);
 
 export default app;
