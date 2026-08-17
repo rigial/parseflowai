@@ -91,14 +91,15 @@ parseflowai/
 ## Progress Tracker
 
 ### Phase 1 — Project Bootstrap
-- [x] `package.json` with pnpm + all dependencies (added `tsx` for dev watch)
+- [x] `package.json` with pnpm + all dependencies
 - [x] `tsconfig.json`
 - [x] `esbuild` build script
 - [x] `.env.example` with all required vars
 - [x] `src/lib/env.ts` — Zod-validated env
-- [ ] `src/lib/logger.ts` — PII-safe logger
+- [x] `src/lib/logger.ts` — PII-safe logger
 - [x] `src/app.ts` — Hono app
-- [x] `src/index.ts` — Local dev server entry with `@hono/node-server`
+- [x] `src/index.ts` — Lambda handler
+- [ ] `src/dev.ts` — Local dev with `@hono/node-server`
 
 ### Phase 2 — Health Route
 - [x] `src/routes/health.ts`
@@ -111,7 +112,8 @@ parseflowai/
 - [x] `src/routes/resumes.ts` (stub)
 - [ ] Tested locally with real S3 bucket
 
-### Phase 4 — PDF Parsing
+### Phase 4 — PDF Parsing & Persistence
+- [x] `src/services/dynamo.service.ts` — `createRecord`, `getRecord`, `updateRecord`
 - [ ] `src/services/pdf.service.ts`
 - [ ] Text extraction from buffer (text-based PDFs)
 - [ ] Tested with sample resume PDF
@@ -126,7 +128,7 @@ parseflowai/
 ### Phase 6 — Parse Route
 - [ ] `src/schemas/parse.schema.ts`
 - [ ] `src/services/resume.service.ts`
-- [x] `src/routes/parse.ts` (stub)
+- [ ] `src/routes/parse.ts`
 - [ ] End-to-end tested
 
 ### Phase 7 — Security Hardening
@@ -155,15 +157,16 @@ parseflowai/
 |---|---|---|
 | `PRD.md` | ✅ Exists | Source of truth for requirements |
 | `AICONTEXT.md` | ✅ Exists | This file — always update after changes |
-| `package.json` | ✅ Updated | Added tsx for local dev script |
-| `src/index.ts` | ✅ Updated | Server entry point with dotenv |
-| `src/app.ts` | ✅ Exists | Hono application routes |
-| `src/routes/health.ts` | ✅ Exists | Health check route |
-| `src/routes/resumes.ts` | ✅ Updated | Resume upload route logic (presigned URL) |
-| `src/routes/parse.ts` | ✅ Exists | Parse route stub |
-| `src/schemas/upload.schema.ts` | ✅ Exists | Zod: upload request/response |
-| `src/lib/env.ts` | ✅ Exists | Validated env vars (Zod) |
+| `docs/dynamo-service.md` | ✅ Exists | DynamoDB Service specification |
+| `src/services/dynamo.service.ts` | ✅ Exists | DynamoDB operations: createRecord, getRecord, updateRecord |
 | `src/services/s3.service.ts` | ✅ Exists | Presigned URL generation |
+| `src/lib/env.ts` | ✅ Exists | Validated env vars with Zod schema |
+| `src/lib/logger.ts` | ✅ Exists | Safe PII-free logger |
+| `src/routes/health.ts` | ✅ Exists | Health check route |
+| `src/routes/resumes.ts` | ✅ Exists | Upload URL route |
+| `src/routes/parse.ts` | ✅ Exists | Parse resume route |
+| `src/schemas/upload.schema.ts` | ✅ Exists | Upload request validation schema |
+| `tests/dynamo.service.test.ts` | ✅ Exists | Unit tests for DynamoDB service |
 
 ---
 
@@ -191,12 +194,13 @@ parseflowai/
 | Variable | Required | Description |
 |---|---|---|
 | `AWS_REGION` | ✅ | AWS region |
-| `S3_BUCKET_NAME` | ✅ | Private S3 bucket for resumes |
+| `AWS_S3_BUCKET` | ✅ | Private S3 bucket for resumes |
+| `DYNAMODB_TABLE_NAME` | ✅ | DynamoDB table name for resume metadata |
 | `S3_PRESIGNED_URL_EXPIRY` | ✅ | Seconds before upload URL expires (default: 900) |
 | `MAX_FILE_SIZE_MB` | ✅ | Max upload size in MB |
 | `GEMINI_API_KEY` | ✅ | Gemini API key |
 | `API_KEY_SECRET` | ✅ | Shared secret for `rp_live_` bearer auth (MVP) |
-| `RESUME_TTL_HOURS` | ✅ | Hours before S3 file is deleted (default: 24) |
+| `RESUME_TTL_HOURS` | ✅ | Hours before S3/DynamoDB record expires (default: 24) |
 | `NODE_ENV` | ✅ | `development` or `production` |
 
 ---
