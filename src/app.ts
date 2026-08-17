@@ -35,4 +35,7 @@ app.route('/v1/resumes', parseRoute);
 app.route('/', resumeRoute);
 app.route('/', parseRoute);
 
+// Root redirect to dashboard
+app.get('/', (c) => c.redirect('/dashboard.html'));
+
 export default app;

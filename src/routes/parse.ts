@@ -8,9 +8,6 @@ import type { ApiKey, AppEnv, User } from "../types/auth";
 
 const parse = new Hono<AppEnv>();
 
-// Protect parse endpoints with API key authentication
-parse.use("*", apiKeyAuth);
-
 async function handleParse(c: Context<AppEnv>) {
   const user = c.get("user") as User;
   const apiKey = c.get("apiKey") as ApiKey | undefined;
@@ -113,7 +110,7 @@ async function handleParse(c: Context<AppEnv>) {
   }
 }
 
-parse.post("/v1/resumes/parse", handleParse);
-parse.post("/parse", handleParse);
+parse.post("/v1/resumes/parse", apiKeyAuth, handleParse);
+parse.post("/parse", apiKeyAuth, handleParse);
 
 export default parse;

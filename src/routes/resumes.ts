@@ -10,10 +10,7 @@ import type { ApiKey, AppEnv, User } from '../types/auth';
 
 const resumes = new Hono<AppEnv>();
 
-// Protect upload-url route with API key authentication
-resumes.use('*', apiKeyAuth);
-
-resumes.post('/upload-url', async (c) => {
+resumes.post('/upload-url', apiKeyAuth, async (c) => {
   const user = c.get('user') as User;
   const apiKey = c.get('apiKey') as ApiKey | undefined;
 
