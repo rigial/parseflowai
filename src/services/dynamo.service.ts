@@ -13,6 +13,8 @@ export type ResumeStatus = "pending" | "ready" | "failed";
 export interface ResumeRecord {
   resumeId: string; // PK — "res_" + nanoid
   customerId: string; // GSI PK — links to API key owner
+  userId?: string; // Links to User entity
+  apiKeyId?: string; // Links to API key used
   status: ResumeStatus; // updated by Extractor Lambda
   extractedText?: string; // written when status becomes "ready"
   fileName: string; // original uploaded filename
@@ -31,16 +33,20 @@ const dynamo = DynamoDBDocumentClient.from(client);
 export async function createRecord(params: {
   resumeId: string;
   customerId: string;
+  userId?: string;
+  apiKeyId?: string;
   fileName: string;
   fileSizeBytes: number;
 }): Promise<void> {
-  const { resumeId, customerId, fileName, fileSizeBytes } = params;
+  const { resumeId, customerId, userId, apiKeyId, fileName, fileSizeBytes } = params;
   const createdAt = new Date().toISOString();
   const expiresAt = Math.floor(Date.now() / 1000) + env.RESUME_TTL_HOURS * 3600;
 
   const item: ResumeRecord = {
     resumeId,
-    customerId,
+    customerId: customerId || userId || 'anonymous',
+    userId: userId || customerId,
+    apiKeyId,
     status: "pending",
     fileName,
     fileSizeBytes,
