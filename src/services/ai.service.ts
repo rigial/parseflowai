@@ -4,6 +4,19 @@ import type { SchemaShorthand } from "../schemas/parse.schema";
 
 export const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
+export interface AiTokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  provider: string;
+  model: string;
+}
+
+export interface AiExtractionResult {
+  data: unknown;
+  tokenUsage?: AiTokenUsage;
+}
+
 // Converts the customer's shorthand schema into Gemini's responseSchema format.
 export function convertToGeminiSchema(shorthand: SchemaShorthand): any {
   // Leaf types
@@ -38,7 +51,7 @@ export function convertToGeminiSchema(shorthand: SchemaShorthand): any {
 export async function extractStructuredData(
   resumeText: string,
   schema: Record<string, SchemaShorthand>
-): Promise<unknown> {
+): Promise<AiExtractionResult> {
   const geminiSchema = convertToGeminiSchema(schema);
 
   const response = await ai.models.generateContent({
@@ -54,9 +67,31 @@ export async function extractStructuredData(
     throw new Error("Gemini returned an empty response");
   }
 
+  let parsed: unknown;
   try {
-    return JSON.parse(response.text);
+    parsed = JSON.parse(response.text);
   } catch {
     throw new Error("Gemini response was not valid JSON");
   }
+
+  let tokenUsage: AiTokenUsage | undefined;
+  const usageMetadata = (response as any).usageMetadata;
+  if (usageMetadata) {
+    const inputTokens = Number(usageMetadata.promptTokenCount || usageMetadata.inputTokens || 0);
+    const outputTokens = Number(usageMetadata.candidatesTokenCount || usageMetadata.outputTokens || 0);
+    const totalTokens = Number(usageMetadata.totalTokenCount || usageMetadata.totalTokens || inputTokens + outputTokens);
+
+    tokenUsage = {
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      provider: 'google-genai',
+      model: env.GEMINI_MODEL,
+    };
+  }
+
+  return {
+    data: parsed,
+    tokenUsage,
+  };
 }

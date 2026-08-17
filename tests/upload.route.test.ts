@@ -8,17 +8,54 @@ import { s3Client } from '../src/services/s3.service';
 import { handler as extractorHandler } from '../src/extractor';
 import { logger } from '../src/lib/logger';
 import { env } from '../src/lib/env';
+import { generateApiKey } from '../src/utils/crypto';
 
 describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, () => {
   beforeEach(() => {
     mock.restoreAll();
   });
 
+  const { apiKey, secretHash } = generateApiKey('live');
+  const mockUser = {
+    userId: 'cust_enterprise_01',
+    email: 'test@example.com',
+    status: 'active',
+    plan: 'free',
+  };
+
+  const handleAuthDynamo = (command: any) => {
+    if (command.input?.Key?.PK === `APIKEY_HASH#${secretHash}`) {
+      return { Item: { userId: 'cust_enterprise_01', keyId: 'key_123' } };
+    }
+    if (
+      command.input?.Key?.PK === 'USER#cust_enterprise_01' &&
+      command.input?.Key?.SK === 'APIKEY#key_123'
+    ) {
+      return {
+        Item: {
+          keyId: 'key_123',
+          userId: 'cust_enterprise_01',
+          secretHash,
+          status: 'active',
+        },
+      };
+    }
+    if (
+      command.input?.Key?.PK === 'USER#cust_enterprise_01' &&
+      command.input?.Key?.SK === 'PROFILE'
+    ) {
+      return { Item: mockUser };
+    }
+    return null;
+  };
 
   it('generates presigned upload URL and creates pending DynamoDB record successfully', async () => {
     let dynamoItemCreated: any = null;
     mock.method(dynamo, 'send', async (command: any) => {
-      if (command.constructor.name === 'PutCommand' || command.input?.Item) {
+      const auth = handleAuthDynamo(command);
+      if (auth) return auth;
+
+      if (command.input?.Item?.fileName) {
         dynamoItemCreated = command.input.Item;
       }
       return {};
@@ -28,12 +65,12 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         fileName: 'jane-doe-resume.pdf',
         contentType: 'application/pdf',
         fileSizeBytes: 1048576,
-        customerId: 'cust_enterprise_01',
       }),
     });
 
@@ -50,6 +87,8 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
     assert.ok(dynamoItemCreated);
     assert.strictEqual(dynamoItemCreated.resumeId, json.data.resumeId);
     assert.strictEqual(dynamoItemCreated.customerId, 'cust_enterprise_01');
+    assert.strictEqual(dynamoItemCreated.userId, 'cust_enterprise_01');
+    assert.strictEqual(dynamoItemCreated.apiKeyId, 'key_123');
     assert.strictEqual(dynamoItemCreated.status, 'pending');
     assert.strictEqual(dynamoItemCreated.fileName, 'jane-doe-resume.pdf');
     assert.strictEqual(dynamoItemCreated.fileSizeBytes, 1048576);
@@ -58,10 +97,13 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
     assert.ok(dynamoItemCreated.expiresAt > Math.floor(Date.now() / 1000));
   });
 
-  it('works with root /upload-url alias route and default customerId', async () => {
+  it('works with root /upload-url alias route with API key', async () => {
     let dynamoItemCreated: any = null;
     mock.method(dynamo, 'send', async (command: any) => {
-      if (command.input?.Item) {
+      const auth = handleAuthDynamo(command);
+      if (auth) return auth;
+
+      if (command.input?.Item?.fileName) {
         dynamoItemCreated = command.input.Item;
       }
       return {};
@@ -71,6 +113,7 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         fileName: 'minimal-resume.pdf',
@@ -81,16 +124,41 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
     assert.strictEqual(response.status, 200);
     const json = await response.json();
     assert.strictEqual(json.success, true);
-    assert.strictEqual(dynamoItemCreated.customerId, 'anonymous');
+    assert.strictEqual(dynamoItemCreated.customerId, 'cust_enterprise_01');
     assert.strictEqual(dynamoItemCreated.fileSizeBytes, 0);
     assert.strictEqual(dynamoItemCreated.status, 'pending');
   });
 
-  it('returns 400 INVALID_REQUEST when request body is invalid JSON', async () => {
+  it('returns 401 UNAUTHORIZED when Authorization header is missing', async () => {
     const response = await app.request('/v1/resumes/upload-url', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fileName: 'resume.pdf',
+        contentType: 'application/pdf',
+      }),
+    });
+
+    assert.strictEqual(response.status, 401);
+    const json = await response.json();
+    assert.strictEqual(json.success, false);
+    assert.strictEqual(json.error.code, 'UNAUTHORIZED');
+  });
+
+  it('returns 400 INVALID_REQUEST when request body is invalid JSON', async () => {
+    mock.method(dynamo, 'send', async (command: any) => {
+      const auth = handleAuthDynamo(command);
+      if (auth) return auth;
+      return {};
+    });
+
+    const response = await app.request('/v1/resumes/upload-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: 'this is not valid json',
     });
@@ -102,10 +170,17 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
   });
 
   it('returns 400 INVALID_REQUEST when fileName is missing or empty', async () => {
+    mock.method(dynamo, 'send', async (command: any) => {
+      const auth = handleAuthDynamo(command);
+      if (auth) return auth;
+      return {};
+    });
+
     const response = await app.request('/v1/resumes/upload-url', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         fileName: '',
@@ -120,10 +195,17 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
   });
 
   it('returns 415 UNSUPPORTED_FILE_TYPE when contentType is not application/pdf', async () => {
+    mock.method(dynamo, 'send', async (command: any) => {
+      const auth = handleAuthDynamo(command);
+      if (auth) return auth;
+      return {};
+    });
+
     const response = await app.request('/v1/resumes/upload-url', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         fileName: 'photo.png',
@@ -138,11 +220,18 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
   });
 
   it('returns 413 FILE_TOO_LARGE when fileSizeBytes exceeds MAX_FILE_SIZE_MB', async () => {
+    mock.method(dynamo, 'send', async (command: any) => {
+      const auth = handleAuthDynamo(command);
+      if (auth) return auth;
+      return {};
+    });
+
     const oversizedBytes = (env.MAX_FILE_SIZE_MB + 1) * 1024 * 1024;
     const response = await app.request('/v1/resumes/upload-url', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         fileName: 'huge-resume.pdf',
@@ -163,14 +252,21 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
       errorLogged = true;
     });
 
-    mock.method(dynamo, 'send', async () => {
-      throw new Error('AWS DynamoDB connection failure');
+    mock.method(dynamo, 'send', async (command: any) => {
+      const auth = handleAuthDynamo(command);
+      if (auth) return auth;
+
+      if (command.input?.Item?.fileName) {
+        throw new Error('AWS DynamoDB connection failure');
+      }
+      return {};
     });
 
     const response = await app.request('/v1/resumes/upload-url', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         fileName: 'resume.pdf',
@@ -186,17 +282,17 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
   });
 
   it('completes the full flow: upload-url initializes pending -> Extractor Lambda updates to ready with text', async () => {
-    // In-memory mock database store
     const db = new Map<string, ResumeRecord>();
 
     mock.method(dynamo, 'send', async (command: any) => {
-      if (command.input?.Item) {
-        // PutCommand
+      const auth = handleAuthDynamo(command);
+      if (auth) return auth;
+
+      if (command.input?.Item?.fileName) {
         db.set(command.input.Item.resumeId, command.input.Item);
         return {};
       }
-      if (command.input?.Key && command.input?.UpdateExpression) {
-        // UpdateCommand
+      if (command.input?.Key?.resumeId && command.input?.UpdateExpression) {
         const key = command.input.Key.resumeId;
         const existing = db.get(key) || ({} as ResumeRecord);
         existing.status = command.input.ExpressionAttributeValues[':status'];
@@ -206,29 +302,30 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
         db.set(key, existing);
         return {};
       }
-      if (command.input?.Key) {
-        // GetCommand
+      if (command.input?.Key?.resumeId) {
         const item = db.get(command.input.Key.resumeId);
         return item ? { Item: item } : {};
       }
       return {};
     });
 
-    // 1. Client calls /upload-url
+    // 1. Client calls /upload-url with API key
     const uploadRes = await app.request('/v1/resumes/upload-url', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
         fileName: 'john-doe-full-flow.pdf',
         contentType: 'application/pdf',
         fileSizeBytes: 204800,
-        customerId: 'customer_123',
       }),
     });
 
     assert.strictEqual(uploadRes.status, 200);
     const uploadJson = await uploadRes.json();
-    const { resumeId, uploadUrl } = uploadJson.data;
+    const { resumeId } = uploadJson.data;
 
     // Immediately after /upload-url, DynamoDB has status: "pending" and no extractedText
     const recordImmediately = await getRecord(resumeId);
@@ -280,6 +377,6 @@ describe('Upload URL Route (POST /v1/resumes/upload-url)', { concurrency: 1 }, (
     assert.ok(recordAfterExtraction.extractedText);
     assert.ok(recordAfterExtraction.extractedText.length > 20);
     assert.strictEqual(recordAfterExtraction.fileName, 'john-doe-full-flow.pdf');
-    assert.strictEqual(recordAfterExtraction.customerId, 'customer_123');
+    assert.strictEqual(recordAfterExtraction.customerId, 'cust_enterprise_01');
   });
 });

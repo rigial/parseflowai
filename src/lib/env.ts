@@ -13,6 +13,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1).default(process.env.GEMINI_API_KEY || 'test-gemini-key'),
   GEMINI_MODEL: z.string().min(1).default(process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'),
   API_KEY_SECRET: z.string().optional().default(''),
+  SESSION_SECRET: z.string().default(process.env.SESSION_SECRET || 'parseflowai-default-session-secret-change-in-prod'),
   RESUME_TTL_HOURS: z.coerce.number().default(24),
   NODE_ENV: z.enum(['development', 'production']).default('development'),
 });

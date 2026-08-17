@@ -85,7 +85,7 @@ describe('AI Service', () => {
   });
 
   describe('extractStructuredData', () => {
-    it('successfully extracts and parses structured JSON from Gemini', async () => {
+    it('successfully extracts and parses structured JSON from Gemini with token usage metadata', async () => {
       const mockResult = {
         name: 'John Doe',
         email: 'john@example.com',
@@ -100,6 +100,11 @@ describe('AI Service', () => {
 
         return {
           text: JSON.stringify(mockResult),
+          usageMetadata: {
+            promptTokenCount: 150,
+            candidatesTokenCount: 50,
+            totalTokenCount: 200,
+          },
         };
       });
 
@@ -109,8 +114,12 @@ describe('AI Service', () => {
         skills: ['string'],
       };
 
-      const data = await extractStructuredData('John Doe Resume Text', schema);
-      assert.deepStrictEqual(data, mockResult);
+      const res = await extractStructuredData('John Doe Resume Text', schema);
+      assert.deepStrictEqual(res.data, mockResult);
+      assert.ok(res.tokenUsage);
+      assert.strictEqual(res.tokenUsage.inputTokens, 150);
+      assert.strictEqual(res.tokenUsage.outputTokens, 50);
+      assert.strictEqual(res.tokenUsage.totalTokens, 200);
     });
 
     it('throws error when Gemini returns empty response text', async () => {
