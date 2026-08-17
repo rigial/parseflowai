@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParseFlowAI - Upload Test</title>
+    <style>
+        :root {
+            --primary: #171717;
+            --primary-hover: #262626;
+            --bg: #fafafa;
+            --surface: #ffffff;
+            --border: #e5e5e5;
+            --text: #171717;
+            --text-muted: #737373;
+            --success: #16a34a;
+            --error: #dc2626;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .container {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        p {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 1rem;
+            background-color: var(--bg);
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--text-muted);
+            background-color: var(--surface);
+        }
+
+        .upload-area p {
+            margin-bottom: 0;
+            font-size: 0.875rem;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .upload-area span {
+            color: var(--text-muted);
+            font-weight: normal;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn:disabled {
+            background-color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        #status {
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            padding: 0.75rem;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .status-success {
+            background-color: #f0fdf4;
+            color: var(--success);
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-error {
+            background-color: #fef2f2;
+            color: var(--error);
+            border: 1px solid #fecaca;
+        }
+
+        .status-loading {
+            background-color: #f3f4f6;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Test File Upload</h1>
+    <p>Upload a PDF resume to test the presigned URL flow to S3.</p>
+
+    <div id="upload-area" class="upload-area" onclick="document.getElementById('file-input').click()">
+        <p>Click to select a PDF <br><span>or drag and drop here</span></p>
+    </div>
+    <input type="file" id="file-input" accept="application/pdf">
+
+    <div id="file-info" class="file-info" style="display: none;">
+        <span id="file-name" style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+        <button id="clear-btn" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">&times;</button>
+    </div>
+
+    <button id="upload-btn" class="btn" disabled>Upload to S3</button>
+
+    <div id="status"></div>
+</div>
+
+<script>
+    const API_URL = 'http://localhost:3000/v1/resumes/upload-url';
+    
+    const fileInput = document.getElementById('file-input');
+    const uploadArea = document.getElementById('upload-area');
+    const fileInfo = document.getElementById('file-info');
+    const fileNameDisplay = document.getElementById('file-name');
+    const clearBtn = document.getElementById('clear-btn');
+    const uploadBtn = document.getElementById('upload-btn');
+    const statusDiv = document.getElementById('status');
+
+    let selectedFile = null;
+
+    // Handle Drag & Drop
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFileSelect(e.dataTransfer.files[0]);
+        }
+    });
+
+    // Handle File Input Change
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+
+    function handleFileSelect(file) {
+        if (file.type !== 'application/pdf') {
+            showStatus('Please select a valid PDF file.', 'error');
+            return;
+        }
+
+        selectedFile = file;
+        fileNameDisplay.textContent = file.name;
+        uploadArea.style.display = 'none';
+        fileInfo.style.display = 'flex';
+        uploadBtn.disabled = false;
+        statusDiv.style.display = 'none';
+    }
+
+    clearBtn.addEventListener('click', () => {
+        selectedFile = null;
+        fileInput.value = '';
+        uploadArea.style.display = 'block';
+        fileInfo.style.display = 'none';
+        uploadBtn.disabled = true;
+    });
+
+    function showStatus(message, type) {
+        statusDiv.textContent = message;
+        statusDiv.className = `status-${type}`;
+        statusDiv.style.display = 'block';
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Generating URL...';
+        showStatus('Requesting secure upload link...', 'loading');
+
+        try {
+            // 1. Get Presigned URL
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fileName: selectedFile.name,
+                    contentType: selectedFile.type
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                throw new Error(data.error?.message || 'Failed to get upload URL');
+            }
+
+            const { uploadUrl, resumeId } = data.data;
+
+            // 2. Upload to S3 directly
+            uploadBtn.textContent = 'Uploading to S3...';
+            showStatus('Uploading file to AWS S3...', 'loading');
+
+            const s3Res = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': selectedFile.type
+                },
+                body: selectedFile
+            });
+
+            if (!s3Res.ok) {
+                throw new Error(`S3 Upload failed: ${s3Res.statusText}. Make sure CORS is configured on your S3 bucket!`);
+            }
+
+            showStatus(`✅ Upload successful! Resume ID: ${resumeId}`, 'success');
+            uploadBtn.textContent = 'Upload Complete';
+
+        } catch (error) {
+            console.error(error);
+            showStatus(`❌ ${error.message}`, 'error');
+            uploadBtn.textContent = 'Upload to S3';
+            uploadBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>

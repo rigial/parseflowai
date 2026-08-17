@@ -95,7 +95,7 @@ parseflowai/
 - [x] `tsconfig.json`
 - [x] `esbuild` build script
 - [x] `.env.example` with all required vars
-- [ ] `src/lib/env.ts` — Zod-validated env
+- [x] `src/lib/env.ts` — Zod-validated env
 - [ ] `src/lib/logger.ts` — PII-safe logger
 - [x] `src/app.ts` — Hono app
 - [x] `src/index.ts` — Local dev server entry with `@hono/node-server`
@@ -106,8 +106,8 @@ parseflowai/
 - [x] Tested locally
 
 ### Phase 3 — Upload URL
-- [ ] `src/schemas/upload.schema.ts`
-- [ ] `src/services/s3.service.ts` — presigned PUT URL
+- [x] `src/schemas/upload.schema.ts`
+- [x] `src/services/s3.service.ts` — presigned PUT URL
 - [x] `src/routes/resumes.ts` (stub)
 - [ ] Tested locally with real S3 bucket
 
@@ -159,8 +159,11 @@ parseflowai/
 | `src/index.ts` | ✅ Updated | Server entry point with dotenv |
 | `src/app.ts` | ✅ Exists | Hono application routes |
 | `src/routes/health.ts` | ✅ Exists | Health check route |
-| `src/routes/resumes.ts` | ✅ Exists | Resume upload route stub |
+| `src/routes/resumes.ts` | ✅ Updated | Resume upload route logic (presigned URL) |
 | `src/routes/parse.ts` | ✅ Exists | Parse route stub |
+| `src/schemas/upload.schema.ts` | ✅ Exists | Zod: upload request/response |
+| `src/lib/env.ts` | ✅ Exists | Validated env vars (Zod) |
+| `src/services/s3.service.ts` | ✅ Exists | Presigned URL generation |
 
 ---
 
