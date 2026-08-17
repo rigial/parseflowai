@@ -99,7 +99,7 @@ parseflowai/
 - [x] `src/lib/logger.ts` — PII-safe logger
 - [x] `src/app.ts` — Hono app
 - [x] `src/index.ts` — Lambda handler
-- [ ] `src/dev.ts` — Local dev with `@hono/node-server`
+- [x] `src/dev.ts` — Local dev with `@hono/node-server`
 
 ### Phase 2 — Health Route
 - [x] `src/routes/health.ts`
@@ -140,12 +140,14 @@ parseflowai/
 - [ ] No PII in logs confirmed
 
 ### Phase 8 — Deployment
-- [ ] AWS Lambda packaging via esbuild
-- [ ] API Gateway setup
-- [ ] S3 bucket (private, lifecycle rules)
-- [ ] CloudWatch logging
-- [ ] Environment variables in Lambda console
-- [ ] Smoke test on live URL
+- [x] API Lambda packaged via esbuild
+- [x] Extractor Lambda packaged separately via esbuild
+- [x] GitHub Actions CI/CD workflow (`.github/workflows/deploy.yml`)
+- [x] API Gateway setup (`https://xaz11sovtd.execute-api.ap-south-1.amazonaws.com`)
+- [x] S3 bucket (private, 24h lifecycle rules, S3 event trigger for .pdf uploads)
+- [x] CloudWatch logging (`/aws/lambda/parseflowai-api`, `/aws/lambda/parseflowai-extractor`)
+- [x] Environment variables in Lambda console
+- [x] Smoke test on live URL (verified /health and full async S3 extractor flow)
 
 ---
 
@@ -159,6 +161,10 @@ parseflowai/
 | `AICONTEXT.md` | ✅ Exists | This file — always update after changes |
 | `docs/dynamo-service.md` | ✅ Exists | DynamoDB Service specification |
 | `docs/s3-event-trigger.md` | ✅ Exists | S3 Event Trigger + Extractor Lambda specification |
+| `docs/cicd-deployment.md` | ✅ Exists | CI/CD GitHub Actions to AWS Lambda specification |
+| `.github/workflows/deploy.yml` | ✅ Exists | GitHub Actions CI/CD for both Lambdas |
+| `src/index.ts` | ✅ Exists | Lambda entry point for parseflowai-api (`index.handler`) |
+| `src/dev.ts` | ✅ Exists | Local dev server with `@hono/node-server` |
 | `src/extractor.ts` | ✅ Exists | Extractor Lambda handler (S3 event trigger) |
 | `src/services/dynamo.service.ts` | ✅ Exists | DynamoDB operations: createRecord, getRecord, updateRecord |
 | `src/services/pdf.service.ts` | ✅ Exists | Text extraction from PDF buffer via pdf-parse |
@@ -193,6 +199,9 @@ parseflowai/
 | 8 | Resumes auto-deleted after 24h | Configurable; default 24h via S3 lifecycle rule | — |
 | 9 | `pdf-parse` for PDF extraction | Lightweight, Buffer-based, no filesystem dependency — correct for Lambda | — |
 | 10 | Async PDF extraction via S3 trigger | `/upload-url` generates presigned URL & creates DynamoDB pending record; S3 trigger runs Extractor Lambda in background so client never waits | 2026-08-17 |
+| 11 | GitHub Actions chosen for CI/CD | Free tier (2000 min/month), zero infrastructure, native AWS credential support via `aws-actions/configure-aws-credentials` | 2026-08-17 |
+| 12 | `--external:@aws-sdk/*` in esbuild | AWS SDK excluded from bundle since Lambda runtime includes it, reduces bundle size significantly | 2026-08-17 |
+| 13 | Region `ap-south-1` for Lambdas & DynamoDB & S3 | Deployed in Mumbai (`ap-south-1`) with API Gateway v2 integration for low latency | 2026-08-17 |
 
 
 ---
