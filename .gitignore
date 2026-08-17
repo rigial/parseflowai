@@ -1,6 +1,7 @@
 # prod
 dist/
 lambda.zip
+*.zip
 
 # dev
 .yarn/

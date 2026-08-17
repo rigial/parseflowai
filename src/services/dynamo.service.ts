@@ -103,40 +103,38 @@ export async function updateRecord(params: {
   resumeId: string;
   status: ResumeStatus;
   extractedText?: string;
+  fileSizeBytes?: number;
 }): Promise<void> {
-  const { resumeId, status, extractedText } = params;
+  const { resumeId, status, extractedText, fileSizeBytes } = params;
+
+  const expressions: string[] = ["#status = :status"];
+  const expressionAttributeNames: Record<string, string> = {
+    "#status": "status",
+  };
+  const expressionAttributeValues: Record<string, any> = {
+    ":status": status,
+  };
+
+  if (extractedText !== undefined) {
+    expressions.push("extractedText = :text");
+    expressionAttributeValues[":text"] = extractedText;
+  }
+
+  if (fileSizeBytes !== undefined && fileSizeBytes > 0) {
+    expressions.push("fileSizeBytes = :fileSizeBytes");
+    expressionAttributeValues[":fileSizeBytes"] = fileSizeBytes;
+  }
 
   try {
-    if (extractedText !== undefined) {
-      await dynamo.send(
-        new UpdateCommand({
-          TableName: env.DYNAMODB_TABLE_NAME,
-          Key: { resumeId },
-          UpdateExpression: "SET #status = :status, extractedText = :text",
-          ExpressionAttributeNames: {
-            "#status": "status",
-          },
-          ExpressionAttributeValues: {
-            ":status": status,
-            ":text": extractedText,
-          },
-        })
-      );
-    } else {
-      await dynamo.send(
-        new UpdateCommand({
-          TableName: env.DYNAMODB_TABLE_NAME,
-          Key: { resumeId },
-          UpdateExpression: "SET #status = :status",
-          ExpressionAttributeNames: {
-            "#status": "status",
-          },
-          ExpressionAttributeValues: {
-            ":status": status,
-          },
-        })
-      );
-    }
+    await dynamo.send(
+      new UpdateCommand({
+        TableName: env.DYNAMODB_TABLE_NAME,
+        Key: { resumeId },
+        UpdateExpression: `SET ${expressions.join(", ")}`,
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+      })
+    );
   } catch (error) {
     const err = error as Error;
     logger.error("DynamoDB updateRecord failed", {

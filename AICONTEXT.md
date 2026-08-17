@@ -109,14 +109,14 @@ parseflowai/
 ### Phase 3 — Upload URL
 - [x] `src/schemas/upload.schema.ts`
 - [x] `src/services/s3.service.ts` — presigned PUT URL
-- [x] `src/routes/resumes.ts` (stub)
-- [ ] Tested locally with real S3 bucket
+- [x] `src/routes/resumes.ts` — upload-url route with DynamoDB pending record creation
+- [x] Tested locally & route integration tests with simulated S3 extractor event flow
 
 ### Phase 4 — PDF Parsing & Persistence
 - [x] `src/services/dynamo.service.ts` — `createRecord`, `getRecord`, `updateRecord`
-- [ ] `src/services/pdf.service.ts`
-- [ ] Text extraction from buffer (text-based PDFs)
-- [ ] Tested with sample resume PDF
+- [x] `src/services/pdf.service.ts`
+- [x] Text extraction from buffer (text-based PDFs)
+- [x] Tested with sample resume PDF
 
 ### Phase 5 — AI Service
 - [ ] `src/services/ai.service.ts`
@@ -158,15 +158,22 @@ parseflowai/
 | `PRD.md` | ✅ Exists | Source of truth for requirements |
 | `AICONTEXT.md` | ✅ Exists | This file — always update after changes |
 | `docs/dynamo-service.md` | ✅ Exists | DynamoDB Service specification |
+| `docs/s3-event-trigger.md` | ✅ Exists | S3 Event Trigger + Extractor Lambda specification |
+| `src/extractor.ts` | ✅ Exists | Extractor Lambda handler (S3 event trigger) |
 | `src/services/dynamo.service.ts` | ✅ Exists | DynamoDB operations: createRecord, getRecord, updateRecord |
-| `src/services/s3.service.ts` | ✅ Exists | Presigned URL generation |
+| `src/services/pdf.service.ts` | ✅ Exists | Text extraction from PDF buffer via pdf-parse |
+| `src/services/s3.service.ts` | ✅ Exists | Presigned URL generation and fetchFileFromS3 added |
 | `src/lib/env.ts` | ✅ Exists | Validated env vars with Zod schema |
 | `src/lib/logger.ts` | ✅ Exists | Safe PII-free logger |
 | `src/routes/health.ts` | ✅ Exists | Health check route |
-| `src/routes/resumes.ts` | ✅ Exists | Upload URL route |
-| `src/routes/parse.ts` | ✅ Exists | Parse resume route |
-| `src/schemas/upload.schema.ts` | ✅ Exists | Upload request validation schema |
+| `src/routes/resumes.ts` | ✅ Exists | Upload URL route with DynamoDB pending record creation |
+| `src/routes/parse.ts` | ✅ Exists | Parse resume route (stub) |
+| `src/schemas/upload.schema.ts` | ✅ Exists | Upload request validation schema with fileSizeBytes & customerId |
 | `tests/dynamo.service.test.ts` | ✅ Exists | Unit tests for DynamoDB service |
+| `tests/pdf.service.test.ts` | ✅ Exists | Unit tests for PDF service |
+| `tests/s3.service.test.ts` | ✅ Exists | Unit tests for S3 service |
+| `tests/extractor.test.ts` | ✅ Exists | Unit tests for Extractor Lambda handler |
+| `tests/upload.route.test.ts` | ✅ Exists | Unit & end-to-end integration tests for /upload-url route and extractor |
 
 ---
 
@@ -184,6 +191,9 @@ parseflowai/
 | 6 | Zod validation on AI output | AI can hallucinate structure; always validate before returning to client | — |
 | 7 | No PII in logs | Resumes contain sensitive data; logger must strip or never receive personal info | — |
 | 8 | Resumes auto-deleted after 24h | Configurable; default 24h via S3 lifecycle rule | — |
+| 9 | `pdf-parse` for PDF extraction | Lightweight, Buffer-based, no filesystem dependency — correct for Lambda | — |
+| 10 | Async PDF extraction via S3 trigger | `/upload-url` generates presigned URL & creates DynamoDB pending record; S3 trigger runs Extractor Lambda in background so client never waits | 2026-08-17 |
+
 
 ---
 
@@ -233,11 +243,14 @@ parseflowai/
 
 ## Standard Response Shapes
 
-**Success:**
+**Success (`/v1/resumes/upload-url`):**
 ```json
 {
   "success": true,
-  "data": { }
+  "data": {
+    "resumeId": "res_a26814f7ca6d40bf8e06defd5d849364",
+    "uploadUrl": "https://parseflowai.s3.ap-south-1.amazonaws.com/..."
+  }
 }
 ```
 

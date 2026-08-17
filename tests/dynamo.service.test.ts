@@ -176,6 +176,31 @@ describe('DynamoDB Service', () => {
       });
     });
 
+    it('updates status, extractedText, and fileSizeBytes when all provided', async () => {
+      let sentCommand: any = null;
+      mock.method(dynamo, 'send', async (command: any) => {
+        sentCommand = command;
+        return {};
+      });
+
+      await updateRecord({
+        resumeId: 'res_ready_with_size',
+        status: 'ready',
+        extractedText: 'Extracted content',
+        fileSizeBytes: 204800,
+      });
+
+      assert.ok(sentCommand);
+      assert.strictEqual(
+        sentCommand.input.UpdateExpression,
+        'SET #status = :status, extractedText = :text, fileSizeBytes = :fileSizeBytes'
+      );
+      assert.strictEqual(
+        sentCommand.input.ExpressionAttributeValues[':fileSizeBytes'],
+        204800
+      );
+    });
+
     it('updates only status when extractedText is omitted (failed status)', async () => {
       let sentCommand: any = null;
       mock.method(dynamo, 'send', async (command: any) => {

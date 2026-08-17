@@ -5,13 +5,22 @@
     "dev": "tsx watch src/index.ts",
     "test": "tsx --test tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "esbuild --bundle --outfile=./dist/index.js --platform=node --target=node20 ./src/index.ts",
-    "zip": "zip -j lambda.zip dist/index.js",
-    "update": "aws lambda update-function-code --zip-file fileb://lambda.zip --function-name hello",
-    "deploy": "run-s build zip update"
+    "build:api": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js",
+    "build:extractor": "esbuild src/extractor.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/extractor.js",
+    "build": "pnpm build:api && pnpm build:extractor",
+    "zip:api": "zip -j dist/api.zip dist/index.js",
+    "zip:extractor": "zip -j dist/extractor.zip dist/extractor.js",
+    "zip": "pnpm zip:api && pnpm zip:extractor",
+    "package": "pnpm build && pnpm zip"
   },
   "devDependencies": {
+    "@aws-sdk/client-iam": "^3.1111.0",
+    "@aws-sdk/client-lambda": "^3.1111.0",
+    "@types/archiver": "^8.0.0",
+    "@types/aws-lambda": "^8.10.162",
     "@types/node": "^26.1.1",
+    "@types/pdf-parse": "^1.1.5",
+    "archiver": "^8.0.0",
     "esbuild": "^0.28.1",
     "npm-run-all2": "^9.0.2",
     "tsx": "^4.23.12",
@@ -25,6 +34,7 @@
     "@hono/node-server": "^2.1.1",
     "dotenv": "^17.4.2",
     "hono": "^4.13.2",
+    "pdf-parse": "^1.1.1",
     "zod": "^4.4.3"
   }
 }
